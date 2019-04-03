@@ -1,7 +1,6 @@
-# Title
-Exploring domain adaptation for lipreading
+# Exploring domain adaptation for lipreading
 
-# Brief description of the scope and objectives of the thesis
+## Brief description of the scope and objectives of the thesis
 Nowadays building a machine learning model that masters the problem of lipreading is
 a hard task. In order to train a model that would provide a decent accuracy on
 never before seen speakers, a very large amount of data is required. This is
