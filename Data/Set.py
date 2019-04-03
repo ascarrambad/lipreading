@@ -8,42 +8,42 @@ class Set(object):
     def __init__(self, domain_data, batch_size, permute=True): # buffer_size
         super(Set, self).__init__()
 
-        self.__current_index = 0
+        self._current_index = 0
 
-        self.__binned_data = domain_data.binned_data
-        self.__index_to_bin_pos = domain_data.index_to_bin_pos
+        self._binned_data = domain_data.binned_data
+        self._index_to_bin_pos = domain_data.index_to_bin_pos
 
-        self.__batch_size = batch_size
-        # self.__buffer_size = buffer_size
+        self._batch_size = batch_size
+        # self._buffer_size = buffer_size
 
         if permute:
-            self.__permutation = np.random.permutation(len(self.__index_to_bin_pos))
+            self._permutation = np.random.permutation(len(self._index_to_bin_pos))
         else:
-            self.__permutation = np.array(range(len(self.__index_to_bin_pos)))
+            self._permutation = np.array(range(len(self._index_to_bin_pos)))
 
-    def __get_from_bin(self, index):
-        bbin, pos = self.__index_to_bin_pos[index]
-        return self.__binned_data[bbin][pos]
+    def _get_from_bin(self, index):
+        bbin, pos = self._index_to_bin_pos[index]
+        return self._binned_data[bbin][pos]
 
     def repeat(self):
-        self.__current_index = 0
+        self._current_index = 0
 
     def next_batch(self):
         # Support arrays setup
         batch_dict = {key: [] for key in ['data', 'data_masks', 'data_targets', 'domain_targets']}
 
         # Return none if whole database as been read
-        if self.__current_index >= len(self.__permutation):
+        if self._current_index >= len(self._permutation):
             return None
 
         # Extracting data from binned_data
-        start_idx = self.__current_index
-        end_idx = start_idx + self.__batch_size
+        start_idx = self._current_index
+        end_idx = start_idx + self._batch_size
 
         for i in range(start_idx, end_idx):
 
-            idx = self.__permutation[i]
-            item = self.__get_from_bin(idx)
+            idx = self._permutation[i]
+            item = self._get_from_bin(idx)
 
             batch_dict['data'].append(item.data)
             batch_dict['data_masks'].append(item.wordmask)
@@ -51,7 +51,7 @@ class Set(object):
             batch_dict['domain_targets'].append(item.speakerlabels)
 
         # Increasing index
-        self.__current_index = end_idx + 1
+        self._current_index = end_idx + 1
 
         # Padding sequences to same length
         max_seq_len = max([seq.shape[0] for seq in batch_dict['data']])

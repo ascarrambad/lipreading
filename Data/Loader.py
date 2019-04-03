@@ -29,7 +29,7 @@ class Loader(object):
     def load_data(self, dbtype, max_words_per_speaker):
         # Get sequence labels
         all_speakers = self.domains_speakers['All']
-        seq_data = self.__collect_seq_data(dbtype, all_speakers, max_words_per_speaker)
+        seq_data = self._collect_seq_data(dbtype, all_speakers, max_words_per_speaker)
 
         # Load actual data
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != 'All']
@@ -39,13 +39,13 @@ class Loader(object):
         domain_data = {}
 
         for dmn, spk in dmn_spk_tuples:
-            binned_data, index_to_bin_pos, feature_size = self.__load_and_bin(seq_data, spk)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk)
             domain_data[dmn] = Domain(dmn, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
 
     # return {'speaker:seq': [[word, fromFrame, toFrame]]}
-    def __collect_seq_data(self, dbtype, speakers, max_words_per_speaker):
+    def _collect_seq_data(self, dbtype, speakers, max_words_per_speaker):
 
         # one line from db: 'e s1 lwae8n 24750 29250'
 
@@ -78,7 +78,7 @@ class Loader(object):
 
         return seq_data
 
-    def __load_and_bin(self, seq_data, speakers, labelResamplingFactor=1): #sequenceProcessor
+    def _load_and_bin(self, seq_data, speakers, labelResamplingFactor=1): #sequenceProcessor
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
