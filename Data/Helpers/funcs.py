@@ -3,22 +3,24 @@ import numpy as np
 
 from . import consts
 
-def load_video_stats(speakers, VideoNorm):
-    assert VideoNorm in [ '', 'M', 'MV' ]
+def sequence_processor(means, stds, add_channel):
+    def processingFunction(wordSeq,speaker):
+        # reshape to remain generic
+        origShape = wordSeq.shape
+        wordSeq.shape = (wordSeq.shape[0], np.prod(wordSeq.shape[1:]))
 
-    means = {} if 'M' in VideoNorm else None
-    stds = {} if 'V' in VideoNorm else None
+        if means is not None:
+            wordSeq -= means[speaker]
+        if stds is not None:
+            wordSeq /= stds[speaker]
 
-    for spk in speakerList:
-        means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX,spk)
-        stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX,spk)
+        wordSeq.shape = origShape
 
-        if 'M' in VideoNorm:
-            means[spk] = np.load(means_file)
-        if 'V' in VideoNorm:
-            stds[spk] = np.load(stds_file)
+        if add_channel:
+            wordSeq = wordSeq[...,None]
+        return wordSeq
 
-    return (means, stds)
+    return processingFunction
 
 def any_element_in_range(element_list,range_from,range_to):
     for el in element_list:

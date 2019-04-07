@@ -23,10 +23,11 @@ class Loader(object):
         all_speakers = [set(x) for x in self.domains_speakers.values()]
         all_speakers = sorted(list(set().union(*all_speakers)))
         self.domains_speakers['All'] = all_speakers
+
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
-    def load_data(self, dbtype, max_words_per_speaker, add_channel=False):
+    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, add_channel=False):
 
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != 'All']
         if dbtype.type == 'train':
@@ -38,11 +39,31 @@ class Loader(object):
             # Get sequence labels
             seq_data = self._collect_seq_data(dbtype, spk, max_words_per_speaker)
 
+            (means, stds) = self._load_video_stats(spk, normalization_vars)
+            seq_proc = funcs.sequence_processor(means, stds, add_channel)
+
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, add_channel)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc)
             domain_data[dmn] = Domain(dmn, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
+
+    def _load_video_stats(self, speakers, normalization_vars):
+        assert normalization_vars in [ '', 'M', 'MV' ]
+
+        means = {} if 'M' in normalization_vars else None
+        stds = {} if 'V' in normalization_vars else None
+
+        for spk in speakers:
+            means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+            stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+
+            if 'M' in normalization_vars:
+                means[spk] = np.load(means_file)
+            if 'V' in normalization_vars:
+                stds[spk] = np.load(stds_file)
+
+        return (means, stds)
 
     # return {'speaker:seq': [[word, fromFrame, toFrame]]}
     def _collect_seq_data(self, dbtype, speakers, max_words_per_speaker):
@@ -78,7 +99,7 @@ class Loader(object):
 
         return seq_data
 
-    def _load_and_bin(self, seq_data, speakers, add_channel, labelResamplingFactor=1): #sequenceProcessor
+    def _load_and_bin(self, seq_data, speakers, sequence_processor, labelResamplingFactor=1):
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
@@ -100,7 +121,7 @@ class Loader(object):
             try:
                 seq_pair = videoData[speaker][name]
                 (sequence, illegal_frames) = seq_pair
-                # sequence = sequenceProcessor(sequence,speaker)
+                sequence = sequence_processor(sequence, speaker)
             except Exception as e:
                 print('Error for sequence %s: %s' % (seqKey,str(e)))
                 sequence = None
@@ -132,19 +153,13 @@ class Loader(object):
                 # key = seqKey + ':' + word
 
                 data = sequence[fromFrame:fromFrame + seq_length]
-                if add_channel: data = np.reshape(data, data.shape + (1,))
-
                 wordmask = np.concatenate(([False] * (seq_length - 1), [True]), axis=0)
-                # phonemask = np.full((seq_length,),True,dtype=bool)
                 wordtargets = np.concatenate(([0] * (seq_length - 1), [encoding.word_to_num(word)]), axis=0)
-                # phonetargets = createFrameTargetsForWord(word,seq_length)
                 speakerlabels = np.full((seq_length,), encoding.speaker_to_num(speaker), dtype=int)
 
                 item = Item(data=data,
                             wordmask=wordmask,
-                            #phonemask=phonemask,
                             wordtargets=wordtargets,
-                            #phonetargets=phonetargets,
                             speakerlabels=speakerlabels)
 
                 funcs.to_bin(item, binned_data, index_to_bin_pos)

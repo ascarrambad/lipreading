@@ -28,11 +28,11 @@ class Set(object):
         self.data_dtype = self._get_from_bin(0).data.dtype
         self.data_ndims = len(self.data_shape)
 
-        self.target_shape = [None]
+        self.target_shape = [None, None]
         self.target_dtype = self._get_from_bin(0).wordtargets.dtype
         self.target_ndims = len(self.target_shape)
 
-        self.domain_shape = [None]
+        self.domain_shape = [None, None]
         self.domain_dtype = self._get_from_bin(0).speakerlabels.dtype
         self.domain_ndims = len(self.domain_shape)
 
