@@ -72,7 +72,7 @@ class Set(object):
         max_seq_len = max([seq.shape[0] for seq in batch_dict['data']])
 
         paddings = [[0, max_seq_len-x.shape[0]] for x in batch_dict['data']]
-        paddings = [paddings] * len(batch_dict.values()) # Repeting padding for all 4 arrays
+        paddings = [paddings] * len(batch_dict.items()) # Repeting padding for all 4 arrays
         paddings[0] = [[x] + [[0, 0]] * (len(self.data_shape)-2) for x in paddings[0]] # Adding no pad for feature dimensions in data
 
         padded_arrays = funcs.pad_nparrays(paddings, list(batch_dict.values()))
