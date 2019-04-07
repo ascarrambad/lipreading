@@ -6,7 +6,7 @@ import itertools
 import pickle
 import numpy as np
 
-from .Helpers import *
+from .Helpers import funcs, consts, encoding
 from .Item import Item
 from .Domain import Domain
 
@@ -21,17 +21,13 @@ class Loader(object):
 
         # Add list with all speakers to be loaded
         all_speakers = [set(x) for x in self.domains_speakers.values()]
-        all_speakers = list(set().union(*all_speakers))
+        all_speakers = sorted(list(set().union(*all_speakers)))
         self.domains_speakers['All'] = all_speakers
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
-    def load_data(self, dbtype, max_words_per_speaker):
-        # Get sequence labels
-        all_speakers = self.domains_speakers['All']
-        seq_data = self._collect_seq_data(dbtype, all_speakers, max_words_per_speaker)
+    def load_data(self, dbtype, max_words_per_speaker, add_channel=False):
 
-        # Load actual data
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != 'All']
         if dbtype.type == 'train':
             dmn_spk_tuples = [x for x in dmn_spk_tuples if x[0] != 'Extra']
@@ -39,7 +35,11 @@ class Loader(object):
         domain_data = {}
 
         for dmn, spk in dmn_spk_tuples:
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk)
+            # Get sequence labels
+            seq_data = self._collect_seq_data(dbtype, spk, max_words_per_speaker)
+
+            # Load actual data
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, add_channel)
             domain_data[dmn] = Domain(dmn, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
@@ -78,7 +78,7 @@ class Loader(object):
 
         return seq_data
 
-    def _load_and_bin(self, seq_data, speakers, labelResamplingFactor=1): #sequenceProcessor
+    def _load_and_bin(self, seq_data, speakers, add_channel, labelResamplingFactor=1): #sequenceProcessor
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
@@ -131,13 +131,16 @@ class Loader(object):
                 # finally collect data item!
                 # key = seqKey + ':' + word
 
+                data = sequence[fromFrame:fromFrame + seq_length]
+                if add_channel: data = np.reshape(data, data.shape + (1,))
+
                 wordmask = np.concatenate(([False] * (seq_length - 1), [True]), axis=0)
                 # phonemask = np.full((seq_length,),True,dtype=bool)
                 wordtargets = np.concatenate(([0] * (seq_length - 1), [encoding.word_to_num(word)]), axis=0)
                 # phonetargets = createFrameTargetsForWord(word,seq_length)
                 speakerlabels = np.full((seq_length,), encoding.speaker_to_num(speaker), dtype=int)
 
-                item = Item(data=sequence[fromFrame:fromFrame + seq_length],
+                item = Item(data=data,
                             wordmask=wordmask,
                             #phonemask=phonemask,
                             wordtargets=wordtargets,

@@ -26,8 +26,8 @@ class Batch(object):
 
         paddings = [[[[0, 0], [0, max_seq_len-self.data.shape[1]]]]*4,
                     [[[0, 0], [0, max_seq_len-oth_batch.data.shape[1]]]]*4]
-        paddings[0][0] = paddings[0][0] + [[0, 0]] * 2
-        paddings[1][0] = paddings[1][0] + [[0, 0]] * 2
+        paddings[0][0] = paddings[0][0] + [[0, 0]] * (len(self.data.shape)-1)
+        paddings[1][0] = paddings[1][0] + [[0, 0]] * (len(oth_batch.data.shape)-1)
 
         # Actual padding
         pad_self_array, pad_oth_batch_array = funcs.pad_nparrays(paddings, arrays_to_be_padded)

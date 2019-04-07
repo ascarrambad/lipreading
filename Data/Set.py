@@ -21,6 +21,21 @@ class Set(object):
         else:
             self._permutation = np.array(range(len(self._index_to_bin_pos)))
 
+        self.data_shape = list(self._get_from_bin(0).data.shape)
+        self.data_shape[0] = None
+        self.data_shape = [None] + self.data_shape
+
+        self.data_dtype = self._get_from_bin(0).data.dtype
+        self.data_ndims = len(self.data_shape)
+
+        self.target_shape = [None]
+        self.target_dtype = self._get_from_bin(0).wordtargets.dtype
+        self.target_ndims = len(self.target_shape)
+
+        self.domain_shape = [None]
+        self.domain_dtype = self._get_from_bin(0).speakerlabels.dtype
+        self.domain_ndims = len(self.domain_shape)
+
     def _get_from_bin(self, index):
         bbin, pos = self._index_to_bin_pos[index]
         return self._binned_data[bbin][pos]
@@ -51,19 +66,18 @@ class Set(object):
             batch_dict['domain_targets'].append(item.speakerlabels)
 
         # Increasing index
-        self._current_index = end_idx + 1
+        self._current_index = end_idx
 
         # Padding sequences to same length
         max_seq_len = max([seq.shape[0] for seq in batch_dict['data']])
 
         paddings = [[0, max_seq_len-x.shape[0]] for x in batch_dict['data']]
         paddings = [paddings] * len(batch_dict.values()) # Repeting padding for all 4 arrays
-        paddings[0] = [[x] + [[0, 0]] * 2 for x in paddings[0]] # Adding no pad for feature dimensions in data
+        paddings[0] = [[x] + [[0, 0]] * (len(self.data_shape)-2) for x in paddings[0]] # Adding no pad for feature dimensions in data
 
         padded_arrays = funcs.pad_nparrays(paddings, list(batch_dict.values()))
 
         numpy_data = [np.array(arr) for arr in padded_arrays]
 
         return Batch(*numpy_data)
-
 
