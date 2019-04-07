@@ -46,10 +46,10 @@ def pad_nparrays(paddings, nparrays):
     padded_arrays = []
 
     if type(nparrays[0]) is list:
-        for pad,llist in zip(paddings, nparrays):
+        for pad,list_ in zip(paddings, nparrays):
             if type(pad) is not list:
                 pad = [pad]
-            padded_arrays.append(pad_nparrays(pad, llist))
+            padded_arrays.append(pad_nparrays(pad, list_))
     else:
         for pad, arr in zip(paddings, nparrays):
             na = np.pad(arr, pad, mode='constant')

@@ -37,8 +37,8 @@ class Set(object):
         self.domain_ndims = len(self.domain_shape)
 
     def _get_from_bin(self, index):
-        bbin, pos = self._index_to_bin_pos[index]
-        return self._binned_data[bbin][pos]
+        bin_, pos = self._index_to_bin_pos[index]
+        return self._binned_data[bin_][pos]
 
     def repeat(self):
         self._current_index = 0
