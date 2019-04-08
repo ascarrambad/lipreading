@@ -27,12 +27,12 @@ class Set(object):
         self.data_dtype = self._get_from_bin(0).data.dtype
         self.data_ndims = len(self.data_shape)
 
-        self.target_shape = [None, len(self._get_from_bin(0).wordtargets)]
-        self.target_dtype = self._get_from_bin(0).wordtargets.dtype
+        self.target_shape = [None, len(self._get_from_bin(0).data_targets)]
+        self.target_dtype = self._get_from_bin(0).data_targets.dtype
         self.target_ndims = len(self.target_shape)
 
-        self.domain_shape = [None, len(self._get_from_bin(0).speakerlabels)]
-        self.domain_dtype = self._get_from_bin(0).speakerlabels.dtype
+        self.domain_shape = [None, len(self._get_from_bin(0).domain_targets)]
+        self.domain_dtype = self._get_from_bin(0).domain_targets.dtype
         self.domain_ndims = len(self.domain_shape)
 
     def _get_from_bin(self, index):
@@ -86,9 +86,9 @@ class Set(object):
             item = self._get_from_bin(idx)
 
             batch_dict['data'].append(item.data)
-            batch_dict['data_masks'].append(item.wordmask)
-            batch_dict['data_targets'].append(item.wordtargets)
-            batch_dict['domain_targets'].append(item.speakerlabels)
+            batch_dict['data_masks'].append(item.data_lengths)
+            batch_dict['data_targets'].append(item.data_targets)
+            batch_dict['domain_targets'].append(item.domain_targets)
 
         # Padding sequences to same length
         max_seq_len = max([seq.shape[0] for seq in batch_dict['data']])

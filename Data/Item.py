@@ -2,8 +2,6 @@
 import collections
 
 Item = collections.namedtuple('Item',['data',
-                                      # 'phonemask',
-                                      # 'phonetargets',
-                                      'wordmask',
-                                      'wordtargets',
-                                      'speakerlabels'])
+                                      'data_lengths',
+                                      'data_targets',
+                                      'domain_targets'])
