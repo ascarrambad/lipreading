@@ -5,7 +5,7 @@ from .Batch import Batch
 from .Helpers import funcs
 
 class Set(object):
-    def __init__(self, domain_data, batch_size, permute=True): # buffer_size
+    def __init__(self, domain_data, batch_size, permute=True):
         super(Set, self).__init__()
 
         self._current_index = 0
@@ -14,7 +14,6 @@ class Set(object):
         self._index_to_bin_pos = domain_data.index_to_bin_pos
 
         self._batch_size = batch_size
-        # self._buffer_size = buffer_size
 
         if permute:
             self._permutation = np.random.permutation(len(self._index_to_bin_pos))
@@ -28,11 +27,11 @@ class Set(object):
         self.data_dtype = self._get_from_bin(0).data.dtype
         self.data_ndims = len(self.data_shape)
 
-        self.target_shape = [None, None]
+        self.target_shape = [None, len(self._get_from_bin(0).wordtargets)]
         self.target_dtype = self._get_from_bin(0).wordtargets.dtype
         self.target_ndims = len(self.target_shape)
 
-        self.domain_shape = [None, None]
+        self.domain_shape = [None, len(self._get_from_bin(0).speakerlabels)]
         self.domain_dtype = self._get_from_bin(0).speakerlabels.dtype
         self.domain_ndims = len(self.domain_shape)
 
@@ -43,18 +42,44 @@ class Set(object):
     def repeat(self):
         self._current_index = 0
 
-    def next_batch(self):
-        # Support arrays setup
-        batch_dict = {key: [] for key in ['data', 'data_masks', 'data_targets', 'domain_targets']}
+    def get_all_data(self):
+
+        # Prepare start & end indexes
+        start_idx = 0
+        end_idx = len(self._permutation)
+
+        # Retrieving data
+        batch = self._get_data(start_idx, end_idx)
+
+        return batch
+
+    def next_batch(self, no_remainder=True):
 
         # Return none if whole database as been read
         if self._current_index >= len(self._permutation):
             return None
 
-        # Extracting data from binned_data
+        # Prepare start & end indexes
         start_idx = self._current_index
-        end_idx = start_idx + self._batch_size
+        end_idx = min(start_idx + self._batch_size, len(self._permutation))
 
+        # Increasing index
+        self._current_index = end_idx
+
+        # Let go of remainder
+        if end_idx-start_idx != self._batch_size and no_remainder:
+            return None
+
+        # Retrieving data
+        batch = self._get_data(start_idx, end_idx)
+
+        return batch
+
+    def _get_data(self, start_idx, end_idx):
+        # Support arrays setup
+        batch_dict = {key: [] for key in ['data', 'data_masks', 'data_targets', 'domain_targets']}
+
+        # Data retrieval
         for i in range(start_idx, end_idx):
 
             idx = self._permutation[i]
@@ -65,19 +90,19 @@ class Set(object):
             batch_dict['data_targets'].append(item.wordtargets)
             batch_dict['domain_targets'].append(item.speakerlabels)
 
-        # Increasing index
-        self._current_index = end_idx
-
         # Padding sequences to same length
         max_seq_len = max([seq.shape[0] for seq in batch_dict['data']])
 
         paddings = [[0, max_seq_len-x.shape[0]] for x in batch_dict['data']]
-        paddings = [paddings] * len(batch_dict.items()) # Repeting padding for all 4 arrays
-        paddings[0] = [[x] + [[0, 0]] * (len(self.data_shape)-2) for x in paddings[0]] # Adding no pad for feature dimensions in data
+        paddings = [[x] + [[0, 0]] * (len(self.data_shape)-2) for x in paddings] # Adding no pad for feature dimensions in data
 
-        padded_arrays = funcs.pad_nparrays(paddings, list(batch_dict.values()))
+        padded_array = funcs.pad_nparrays(paddings, batch_dict['data'])
 
-        numpy_data = [np.array(arr) for arr in padded_arrays]
+        # Numpy conversion
+        lists = list(batch_dict.values())
+        lists[0] = padded_array
+
+        numpy_data = [np.array(arr) for arr in lists]
 
         return Batch(*numpy_data)
 

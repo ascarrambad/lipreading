@@ -153,9 +153,13 @@ class Loader(object):
                 # key = seqKey + ':' + word
 
                 data = sequence[fromFrame:fromFrame + seq_length]
-                wordmask = np.concatenate(([False] * (seq_length - 1), [True]), axis=0)
-                wordtargets = np.concatenate(([0] * (seq_length - 1), [encoding.word_to_num(word)]), axis=0)
-                speakerlabels = np.full((seq_length,), encoding.speaker_to_num(speaker), dtype=int)
+                wordmask = np.array(seq_length)#np.concatenate(([False] * (seq_length - 1), [True]), axis=0)
+
+                one_hot = np.diag(np.ones(encoding.word_classes_count(), dtype=np.int))
+                wordtargets = one_hot[encoding.word_to_num(word)] # wordtargets = np.concatenate(([0] * (seq_length - 1), [encoding.word_to_num(word)]), axis=0)
+
+                one_hot = np.diag(np.ones(encoding.speaker_classes_count(), dtype=np.int))
+                speakerlabels = one_hot[encoding.speaker_to_num(speaker)] #np.full((seq_length,), encoding.speaker_to_num(speaker), dtype=int)
 
                 item = Item(data=data,
                             wordmask=wordmask,
