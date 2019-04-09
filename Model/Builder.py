@@ -30,6 +30,10 @@ class Builder(object):
             plc = tf.placeholder(dtype, shape, name)
             self.placeholders[name] = plc
 
+    def add_main_specification(self, spec_str, input_name, target_name):
+        graph_spec = Graph(spec_str, input_name, target_name)
+        self.graph_specs.insert(0, graph_spec)
+
     def add_specification(self, spec_str, input_name, target_name):
         graph_spec = Graph(spec_str, input_name, target_name)
         self.graph_specs.append(graph_spec)
