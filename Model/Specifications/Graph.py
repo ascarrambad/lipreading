@@ -30,5 +30,5 @@ class Graph(object):
                                                                        logits=out_tensor)
             self.loss = tf.reduce_mean(cross_entropy)
 
-            hits = tf.equal(tf.argmax(out_tensor, axis=1), tf.argmax(trg_tensor, axis=1))
-            self.accuracy = tf.reduce_mean(tf.cast(hits, tf.float32))
+            self.hits = tf.equal(tf.argmax(out_tensor, axis=1), tf.argmax(trg_tensor, axis=1))
+            self.accuracy = tf.reduce_mean(tf.cast(self.hits, tf.float32))
