@@ -1,12 +1,12 @@
 
 import tensorflow as tf
 
-from .LayerSpec import LayerSpec
+from .Layer import Layer
 
-class GraphSpec(object):
+class Graph(object):
 
     def __init__(self, string_spec, input_name, target_name):
-        super(GraphSpec, self).__init__()
+        super(Graph, self).__init__()
 
         self.input_name = input_name
         self.target_name = target_name
@@ -15,7 +15,7 @@ class GraphSpec(object):
 
         self.layers = {}
         for idx, spec in enumerate(specs):
-            layer = LayerSpec(spec, idx)
+            layer = Layer(spec, idx)
             self.layers[layer.name] = layer
 
     def build(self, in_tensor, trg_tensor, init_std):

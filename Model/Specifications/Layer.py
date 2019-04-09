@@ -3,7 +3,7 @@ import re
 
 import tensorflow as tf
 
-from .TensorHelpers import layer_type
+from ..Helpers.Layers import layer_type
 
 SPECIAL = r'(?P<special>\*?)'
 TYPE = r'(?P<type>[A-Z]+)'
@@ -13,10 +13,10 @@ ARGS = r'(!(?P<args>([^-]+-?)+))?'
 
 SPEC = SPECIAL + TYPE + NAME + LAYERS + ARGS
 
-class LayerSpec(object):
+class Layer(object):
 
     def __init__(self, spec_str, index):
-        super(LayerSpec, self).__init__()
+        super(Layer, self).__init__()
 
         self.index = index
 

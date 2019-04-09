@@ -2,7 +2,7 @@
 import numpy as np
 import tensorflow as tf
 
-from .CustomLayers.GradientReversal import gradient_reversal
+from ..CustomLayers.GradientReversal import gradient_reversal
 
 ################################################################################
 ################################### LAYERS #####################################
