@@ -24,7 +24,7 @@ class Layer(object):
 
         self.special = match.group('special') is '*'
         self.type = match.group('type')
-        self.name = match.group('name').strip('()') if match.group('name') is not None else 'Layer%d' % index
+        self.name = match.group('name').strip('()') if match.group('name') is not None else '{0}-{1}'.format(self.type, index)
         self.sublayers = match.group('sublayers').split('-') if not self.special else []
         self.args = match.group('args').split('-') if match.group('args') is not None else []
 
