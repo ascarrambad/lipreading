@@ -1,7 +1,7 @@
 
 import tensorflow as tf
 
-from .GraphSpec import GraphSpec
+from .Specifications.Graph import Graph
 
 # Each layer type must be separated by '_', the type is at the beginning in all caps
 # Each layer type can have a name enclosed by brackets '(FooBar42)'
@@ -31,7 +31,7 @@ class Builder(object):
             self.placeholders[name] = plc
 
     def add_specification(self, spec_str, input_name, target_name):
-        graph_spec = GraphSpec(spec_str, input_name, target_name)
+        graph_spec = Graph(spec_str, input_name, target_name)
         self.graph_specs.append(graph_spec)
 
     def build_model(self):
