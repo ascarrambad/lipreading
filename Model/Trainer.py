@@ -70,17 +70,33 @@ class Trainer(object):
             self.session.run(tf.global_variables_initializer())
             self._setup_tensorboard()
 
-        batches = list(map(lambda x: x.get_all_data(), test_sets))
-        final_batch = batches[0]
-        for batch in batches[1:]:
-            final_batch = final_batch.concatenate(batch, training=True)
+        # Load initial batches
+        list(map(lambda x: x.repeat(), test_sets))
+        batches = list(map(lambda x: x.next_batch(), test_sets))
 
-        # Tensors to evaluate
-        loss = self._graph_specs[0].loss
-        acc = self._graph_specs[0].accuracy
+        loss_ = []
+        acc_ = []
 
-        # Graph execution
-        loss_, acc_ = self._execute([loss, acc], final_batch, 0.0, False)
+        # Testing
+        while None not in batches:
+            final_batch = batches[0]
+            for batch in batches[1:]:
+                final_batch = final_batch.concatenate(batch, training=True)
+
+            # Tensors to evaluate
+            loss = self._graph_specs[0].loss
+            acc = self._graph_specs[0].accuracy
+
+            # Graph execution
+            l, a = self._execute([loss, acc], final_batch, 0.0, False)
+            loss_.append(l)
+            acc_.append(a)
+
+            # Load new Batches
+            batches = list(map(lambda x: x.next_batch(), test_sets))
+
+        loss_ = np.mean(np.array(loss_))
+        acc_ = np.mean(np.array(acc_))
         print('Loss: {0}, Accuracy: {1}'.format(loss_,acc_))
 
         if new_session:
