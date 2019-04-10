@@ -56,7 +56,7 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride, depth
 ################################################################################
 
 # *LSTM!64.64-0
-def _lstm(in_tensor, num_hidden_units, seq_len_tensor_name='Inputs/SeqLengths', out_hidden_state=True, zero_init=False):
+def _lstm(in_tensor, num_hidden_units, out_hidden_state=True, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
 
     num_hidden_units = [int(x) for x in num_hidden_units.split('.')]
     out_hidden_state = bool(int(out_hidden_state))
@@ -143,21 +143,56 @@ def _gradient_reversal(in_tensor, lambda_tensor_name='Inputs/Lambda'):
     return tf.identity(out_tensor, name='Output')
 
 # *FLATFEAT(Flat)!3
-def _flatfeatures(in_tensor, num_to_flat=2):
+_orig_shape = None # Shape to be recovered by orig_shape layer
+def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 
     num_to_flat = int(num_to_flat)
+    reversed_ = bool(int(zero_init))
 
     assert len(in_tensor.shape) - num_to_flat >= 1
+
+    if _orig_shape is None:
+        _orig_shape = (reversed_, current_shape[:num_to_flat] if reversed_ else current_shape[-num_to_flat:])
 
     current_shape = in_tensor.shape.as_list()
     current_shape = [-1 if x is None else x for x in current_shape]
 
-    flat_feat = np.prod(current_shape[-num_to_flat:])
+    if not reversed_:
+        flat_feat = np.prod(current_shape[-num_to_flat:])
+        new_shape = current_shape[:-num_to_flat] + [flat_feat]
+    else:
+        flat_feat = np.prod(current_shape[:num_to_flat])
+        new_shape = [flat_feat] + current_shape[num_to_flat:]
 
-    new_shape = current_shape[:-num_to_flat] + [flat_feat]
     return tf.reshape(tensor=in_tensor,
                       shape=new_shape,
                       name='Output')
+
+# *ORESHAPE
+def _original_reshape(in_tensor):
+
+    assert _orig_shape is not None
+
+    reversed_ = _orig_shape[0]
+    flat_feat = _orig_shape[1]
+
+    current_shape = in_tensor.shape.as_list()
+    current_shape = [-1 if x is None else x for x in current_shape]
+
+    if not reversed_:
+        new_shape = current_shape[:-1] + flat_feat
+    else:
+        new_shape = flat_feat + current_shape[1:]
+
+    out_tensor = tf.reshape(tensor=in_tensor,
+                            shape=new_shape,
+                            name='Output')
+
+    _orig_shape = None
+
+    return out_tensor
+
+
 
 # *DP(Dropout)!0.5
 def _dropout(in_tensor, keep_prob=0.5, train_tensor_name='Inputs/Training'):
@@ -199,6 +234,7 @@ layer_type = {
     'ADVSPLIT': _adversarial_split,
     'GRADFLIP': _gradient_reversal,
     'FLATFEAT': _flatfeatures,
+    'ORESHAPE': _original_reshape,
     'DP': _dropout,
     'MP': _max_pool,
 }
