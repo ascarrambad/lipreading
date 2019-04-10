@@ -106,18 +106,14 @@ def _convlstm(in_tensor, kernel, num_filters, conv_ndims=2, out_hidden_state=Tru
 
     return tf.identity(out_tensor, name='Output')
 
-def _mask_seq(in_tensor, shape, mask_tensor_name='Inputs/WordMasks'):
+def _mask_seq(in_tensor, mask_tensor_name='Inputs/SeqLengths'):
 
-    shape = [int(x) for x in num_hidden_units.split('.')]
+    seq_idx = tf.identity(tf.get_default_graph().get_tensor_by_name(mask_tensor_name + ':0') - 1, name='SeqIndices')
+    batch_idx = tf.range(tf.shape(seq_idx)[0], dtype=tf.int32, name='BatchIndices')
 
-    word_mask = tf.get_default_graph().get_tensor_by_name(mask_tensor_name + ':0')
+    idx = tf.stack([batch_idx, seq_idx], axis=1, name='Indices')
 
-    word_mask = tf.reshape(word_mask,shape,axis=0)
-
-    out_tensor = val * tf.cast(word_mask,tf.float32)
-    # outTensor = tf.reduce_sum(masked_val,0,name='SEQOUT')
-
-    return tf.identity(out_tensor, name='Output')
+    return tf.gather_nd(params=in_tensor, indices=idx, name='Output')
 
 # *ADVSPLIT(Adv)
 def _adversarial_split(in_tensor, at_index=64, train_tensor_name='Inputs/Training'):
@@ -147,12 +143,14 @@ _orig_shape = None # Shape to be recovered by orig_shape layer
 def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 
     num_to_flat = int(num_to_flat)
-    reversed_ = bool(int(zero_init))
+    reversed_ = bool(int(reversed_))
+
+    global _orig_shape
 
     assert len(in_tensor.shape) - num_to_flat >= 1
 
     if _orig_shape is None:
-        _orig_shape = (reversed_, current_shape[:num_to_flat] if reversed_ else current_shape[-num_to_flat:])
+        _orig_shape = (reversed_, tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:])
 
     current_shape = in_tensor.shape.as_list()
     current_shape = [-1 if x is None else x for x in current_shape]
@@ -161,7 +159,7 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
         flat_feat = np.prod(current_shape[-num_to_flat:])
         new_shape = current_shape[:-num_to_flat] + [flat_feat]
     else:
-        flat_feat = np.prod(current_shape[:num_to_flat])
+        flat_feat = -1
         new_shape = [flat_feat] + current_shape[num_to_flat:]
 
     return tf.reshape(tensor=in_tensor,
@@ -171,18 +169,17 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 # *ORESHAPE
 def _original_reshape(in_tensor):
 
+    global _orig_shape
+
     assert _orig_shape is not None
 
     reversed_ = _orig_shape[0]
     flat_feat = _orig_shape[1]
 
-    current_shape = in_tensor.shape.as_list()
-    current_shape = [-1 if x is None else x for x in current_shape]
-
     if not reversed_:
-        new_shape = current_shape[:-1] + flat_feat
+        new_shape = tf.concat([tf.shape(in_tensor)[:-1], flat_feat], axis=0)
     else:
-        new_shape = flat_feat + current_shape[1:]
+        new_shape = tf.concat([flat_feat, tf.shape(in_tensor)[1:]], axis=0)
 
     out_tensor = tf.reshape(tensor=in_tensor,
                             shape=new_shape,
