@@ -79,7 +79,7 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=True, zero_init=False, s
     return tf.identity(out_tensor, name='Output')
 
 # *ConvLSTM!2-12
-def _convlstm(in_tensor, kernel, num_filters, conv_ndims=2, seq_len_tensor_name='Inputs/SeqLengths', out_hidden_state=True, zero_init=False):
+def _convlstm(in_tensor, kernel, num_filters, conv_ndims=2, out_hidden_state=True, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
 
     kernel = int(kernel)
     num_filters = int(num_filters)
