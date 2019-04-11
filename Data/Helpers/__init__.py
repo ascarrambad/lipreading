@@ -1,2 +1,2 @@
 
-__all__ = ['consts', 'encoding', 'funcs']
+__all__ = ['consts', 'encoding', 'enums', 'funcs']
