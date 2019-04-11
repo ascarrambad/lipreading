@@ -13,8 +13,8 @@ class Set(object):
 
         self._current_index = 0
 
-        self._binned_data = domain_data[domain_type].binned_data
-        self._index_to_bin_pos = domain_data[domain_type].index_to_bin_pos
+        self._binned_data = domain_data.binned_data
+        self._index_to_bin_pos = domain_data.index_to_bin_pos
 
         self._batch_size = batch_size
 

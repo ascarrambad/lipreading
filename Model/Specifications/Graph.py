@@ -28,7 +28,7 @@ class Graph(object):
                 out_tensor = tf.identity(curr_tensor, name='Logits')
 
                 cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,
-                                                                           logits=out_tensor
+                                                                           logits=out_tensor,
                                                                            name='SoftmaxCrossEntropy')
                 self.loss = tf.reduce_mean(cross_entropy, name='Loss')
                 tf.summary.scalar('Loss', self.loss)
