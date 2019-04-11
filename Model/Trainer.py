@@ -2,6 +2,8 @@
 import numpy as np
 import tensorflow as tf
 
+from .Helpers import enums
+
 class Trainer(object):
 
     def __init__(self, epochs, learning_rate, graph_specs, placeholders, tensorboard_path=None):
@@ -23,16 +25,20 @@ class Trainer(object):
         self.session = None
 
     def init_session(self, session=None):
-        if session is None:
-            self.session = tf.Session()
+        if session is not None:
+            self.session.close()
 
-    def train(self, train_sets, valid_sets):
+        self.session = tf.Session()
+        self.session.run(tf.global_variables_initializer())
+
+    def train(self, train_sets, valid_sets, stopping_type, stopping_patience):
         assert self.session is not None
         assert len(train_sets) > 0
-        assert len(valid_sets) > 0
+
+        valid_sets = train_sets + valid_sets
 
         # Variables init and Tensorflow setup
-        self.session.run(tf.global_variables_initializer())
+        self._training_current_best = (0,0)
         self._setup_tensorboard()
 
         # Epochs loop
@@ -59,56 +65,73 @@ class Trainer(object):
 
             # Testing
             print('Epoch: {0}'.format(epoch))
-            self.test(valid_sets, new_session=False)
+            losses, _ = self.test(valid_sets)
 
-        self.session.close()
-        self.session = None
+            keys = list(map(lambda x: (x.type, x.domain_type), valid_sets))
+            if self._evaluate_stopping(epoch, losses, stopping_type, stopping_patience):
+                print('Stopping at epoch %d because stop condition has been reached' % epoch)
+                return
 
-    def test(self, test_sets, new_session=True):
-
-        if new_session:
-            self.session.run(tf.global_variables_initializer())
-            self._setup_tensorboard()
-
-        # Load initial batches
+    def test(self, test_sets):
+        # Make sure batch iterators are reset
         list(map(lambda x: x.repeat(), test_sets))
-        batches = list(map(lambda x: x.next_batch(), test_sets))
 
-        loss_ = []
-        acc_ = []
+        # Loss and accuracy support arrays
+        losses = []
+        accs = []
 
-        # Testing
-        while None not in batches:
-            final_batch = batches[0]
-            for batch in batches[1:]:
-                final_batch = final_batch.concatenate(batch, training=True)
+        # For each set
+        for tset in test_sets:
 
-            # Tensors to evaluate
-            loss = self._graph_specs[0].loss
-            acc = self._graph_specs[0].accuracy
+            # Current loss and accuracy support arrays
+            set_loss = []
+            set_acc = []
 
-            # Graph execution
-            l, a = self._execute([loss, acc], final_batch, 0.0, False)
-            loss_.append(l)
-            acc_.append(a)
+            # Load initial Batch
+            batch = tset.next_batch()
 
-            # Load new Batches
-            batches = list(map(lambda x: x.next_batch(), test_sets))
+            # Testing
+            while batch is not None:
+                # Tensors to evaluate
+                loss = self._graph_specs[0].loss
+                acc = self._graph_specs[0].accuracy
 
-        loss_ = np.mean(np.array(loss_))
-        acc_ = np.mean(np.array(acc_))
-        print('Loss: {0}, Accuracy: {1}'.format(loss_,acc_))
+                # Graph execution
+                l, a = self._execute([loss, acc], batch, 0.0, False)
+                set_loss.append(l)
+                set_acc.append(a)
 
-        if new_session:
-            self.session.close()
-            self.session = None
+                # Load new Batch
+                batch = tset.next_batch()
+
+            # Compute mean and print
+            set_loss = np.mean(np.array(set_loss))
+            set_acc = np.mean(np.array(set_acc))
+            losses.append(set_loss)
+            accs.append(set_acc)
+            print('Set[{0}-{1}] Loss: {2}, Accuracy: {3}'.format(tset.type.name, tset.domain_type.name,set_loss,set_acc))
+
+        return losses, accs
 
     def _setup_tensorboard(self):
         if self._tensorboard_path is not None:
             self.train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
-            # self.valid_writer = tf.summary.FileWriter(self._tensorboard_path + '/valid', self.session.graph)
+            self.validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
+            self.validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
 
             self.summaries = tf.summary.merge_all()
+
+    def _evaluate_stopping(self, epoch, losses, criteria, patience):
+        doStop = False
+        if criteria != enums.StoppingType.OFF:
+            stopValue = losses[criteria.value]
+
+            if stopValue > self._training_current_best[1]:
+                self._training_current_best = (epoch,stopValue)
+            elif epoch - self._training_current_best[0] > patience:
+                doStop = True
+
+        return doStop
 
     def _execute(self, tensors, batch, lambda_, training):
 
