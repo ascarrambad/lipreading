@@ -24,11 +24,15 @@ class Graph(object):
             curr_tensor = l.build(curr_tensor, init_std)
 
         if trg_tensor is not None:
-            out_tensor = curr_tensor
+            with tf.name_scope('Classification'):
+                out_tensor = tf.identity(curr_tensor, name='Logits')
 
-            cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,
-                                                                       logits=out_tensor)
-            self.loss = tf.reduce_mean(cross_entropy)
+                cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,
+                                                                           logits=out_tensor
+                                                                           name='SoftmaxCrossEntropy')
+                self.loss = tf.reduce_mean(cross_entropy, name='Loss')
+                tf.summary.scalar('Loss', self.loss)
 
-            self.hits = tf.equal(tf.argmax(out_tensor, axis=1), tf.argmax(trg_tensor, axis=1))
-            self.accuracy = tf.reduce_mean(tf.cast(self.hits, tf.float32))
+                self.hits = tf.equal(tf.argmax(out_tensor, axis=1), tf.argmax(trg_tensor, axis=1), name='Hits')
+                self.accuracy = tf.reduce_mean(tf.cast(self.hits, tf.float32), name='Accuracy')
+                tf.summary.scalar('Accuracy', self.accuracy)

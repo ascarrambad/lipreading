@@ -6,7 +6,7 @@ import itertools
 import pickle
 import numpy as np
 
-from .Helpers import funcs, consts, encoding
+from .Helpers import funcs, consts, encoding, enums
 from .Item import Item
 from .Domain import Domain
 
@@ -22,16 +22,16 @@ class Loader(object):
         # Add list with all speakers to be loaded
         all_speakers = [set(x) for x in self.domains_speakers.values()]
         all_speakers = sorted(list(set().union(*all_speakers)))
-        self.domains_speakers['All'] = all_speakers
+        self.domains_speakers[enums.DomainType.ALL] = all_speakers
 
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
     def load_data(self, dbtype, max_words_per_speaker, normalization_vars, add_channel=False):
 
-        dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != 'All']
-        if dbtype.type == 'train':
-            dmn_spk_tuples = [x for x in dmn_spk_tuples if x[0] != 'Extra']
+        dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != enums.DomainType.ALL]
+        if dbtype == enums.SetType.TRAIN:
+            dmn_spk_tuples = [x for x in dmn_spk_tuples if x[0] != enums.DomainType.EXTRA]
 
         domain_data = {}
 
@@ -44,7 +44,7 @@ class Loader(object):
 
             # Load actual data
             binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc)
-            domain_data[dmn] = Domain(dmn, binned_data, index_to_bin_pos)
+            domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
 
