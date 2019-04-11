@@ -1,7 +1,7 @@
 
 from enum import Enum
 
-from .Helpers import consts
+from . import consts
 
 class SetType(Enum):
 
