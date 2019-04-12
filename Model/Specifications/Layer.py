@@ -3,7 +3,7 @@ import re
 
 import tensorflow as tf
 
-from ..Helpers.Layers import layer_type
+from ..Helpers.layers import layer_type
 
 SPECIAL = r'(?P<special>\*?)'
 TYPE = r'(?P<type>[A-Z]+)'
