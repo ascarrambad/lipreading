@@ -1,5 +1,10 @@
 
 from enum import Enum
+from Data import SetType, DomainType
 
 class StoppingType(Enum):
-    OFF, SOURCETRAIN, TARGETTRAIN, SOURCEVALID, TARGETVALID = range(5)
+    OFF = (None, None)
+    SOURCETRAIN = (SetType.TRAIN, DomainType.SOURCE)
+    TARGETTRAIN = (SetType.TRAIN, DomainType.TARGET)
+    SOURCEVALID = (SetType.VALID, DomainType.SOURCE)
+    TARGETVALID = (SetType.VALID, DomainType.TARGET)
