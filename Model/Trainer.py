@@ -64,12 +64,12 @@ class Trainer(object):
                 batches = list(map(lambda x: x.next_batch(), train_sets))
 
             # Testing
-            print('Epoch: {0}'.format(epoch))
-            losses, _ = self.test(valid_sets)
+            print('\nEPOCH [{0}]'.format(epoch))
+            losses_accs = self.test(valid_sets)
 
-            keys = list(map(lambda x: (x.type, x.domain_type), valid_sets))
-            if self._evaluate_stopping(epoch, losses, stopping_type, stopping_patience):
-                print('Stopping at epoch %d because stop condition has been reached' % epoch)
+            accs = {st: {dt: vv[1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
+            if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
+                print('Stopping at EPOCH [{0}] because stop condition has been reached'.format(epoch))
                 return
 
     def test(self, test_sets):
@@ -77,8 +77,7 @@ class Trainer(object):
         list(map(lambda x: x.repeat(), test_sets))
 
         # Loss and accuracy support arrays
-        losses = []
-        accs = []
+        losses_accs = {x.type: {} for x in test_sets}
 
         # For each set
         for tset in test_sets:
@@ -104,14 +103,15 @@ class Trainer(object):
                 # Load new Batch
                 batch = tset.next_batch()
 
-            # Compute mean and print
+            # Compute mean
             set_loss = np.mean(np.array(set_loss))
             set_acc = np.mean(np.array(set_acc))
-            losses.append(set_loss)
-            accs.append(set_acc)
-            print('Set[{0}-{1}] Loss: {2}, Accuracy: {3}'.format(tset.type.name, tset.domain_type.name,set_loss,set_acc))
+            losses_accs[tset.type][tset.domain_type] = (set_loss, set_acc)
 
-        return losses, accs
+        # Printing results
+        self._pretty_print(losses_accs)
+
+        return losses_accs
 
     def _setup_tensorboard(self):
         if self._tensorboard_path is not None:
@@ -121,10 +121,10 @@ class Trainer(object):
 
             self.summaries = tf.summary.merge_all()
 
-    def _evaluate_stopping(self, epoch, losses, criteria, patience):
+    def _evaluate_stopping(self, epoch, accs, criteria, patience):
         doStop = False
         if criteria != enums.StoppingType.OFF:
-            stopValue = losses[criteria.value]
+            stopValue = accs[criteria.value[0]][criteria.value[1]]
 
             if stopValue > self._training_current_best[1]:
                 self._training_current_best = (epoch,stopValue)
@@ -145,5 +145,11 @@ class Trainer(object):
         feed = dict(zip(keys, values))
 
         return self.session.run(tensors, feed)
+
+    def _pretty_print(self, losses_accs):
+        for key in losses_accs.keys():
+            print('* ' + key.name)
+            for k,v in losses_accs[key].items():
+                print('\t[{0}] Loss: {1}, Accuracy: {2}'.format(k.name, *v))
 
 
