@@ -116,9 +116,9 @@ def _mask_seq(in_tensor, mask_tensor_name='Inputs/SeqLengths'):
     return tf.gather_nd(params=in_tensor, indices=idx, name='Output')
 
 # *ADVSPLIT(Adv)
-def _adversarial_split(in_tensor, at_index=64, train_tensor_name='Inputs/Training'):
+def _adversarial_split(in_tensor, train_tensor_name='Inputs/Training'):
 
-    at_index = int(at_index)
+    at_index = tf.identity(tf.cast(tf.shape(in_tensor)[0]/2, dtype=tf.int32), name='HalfBatchLength')
 
     train_cond = tf.get_default_graph().get_tensor_by_name(train_tensor_name + ':0')
 
