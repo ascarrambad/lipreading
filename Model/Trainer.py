@@ -17,10 +17,12 @@ class Trainer(object):
         self.learning_rate = learning_rate
         self._tensorboard_path = tensorboard_path
 
-        loss = sum([x.loss for x in self._graph_specs])
+        self.losses = [x.loss for x in self._graph_specs]
+        jloss = tf.identity(sum(self.losses), name='JointLoss')
+        self.losses.append(jloss)
 
         optimizer = tf.train.AdamOptimizer(self.learning_rate)
-        self.optimizer = optimizer.minimize(loss)
+        self.optimizer = optimizer.minimize(jloss)
 
         self.session = None
 
@@ -64,7 +66,7 @@ class Trainer(object):
                 batches = list(map(lambda x: x.next_batch(), train_sets))
 
             # Testing
-            print('\nEPOCH [{0}]'.format(epoch))
+            print('EPOCH [{0}]'.format(epoch))
             losses_accs = self.test(valid_sets)
 
             accs = {st: {dt: vv[1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
@@ -83,30 +85,30 @@ class Trainer(object):
         for tset in test_sets:
 
             # Current loss and accuracy support arrays
-            set_loss = []
-            set_acc = []
+            set_losses = {k: [] for k in range(len(self.losses))}
+            set_accs = []
 
             # Load initial Batch
             batch = tset.next_batch()
 
             # Testing
             while batch is not None:
-                # Tensors to evaluate
-                loss = self._graph_specs[0].loss
+                # Accuracy tensor
                 acc = self._graph_specs[0].accuracy
 
                 # Graph execution
-                l, a = self._execute([loss, acc], batch, 0.0, False)
-                set_loss.append(l)
-                set_acc.append(a)
+                res = self._execute(self.losses + [acc], batch, 0.0, False)
+                for i,v in enumerate(res[:-1]):
+                    set_losses[i].append(v)
+                set_accs.append(res[-1])
 
                 # Load new Batch
                 batch = tset.next_batch()
 
             # Compute mean
-            set_loss = np.mean(np.array(set_loss))
-            set_acc = np.mean(np.array(set_acc))
-            losses_accs[tset.type][tset.domain_type] = (set_loss, set_acc)
+            set_losses = [np.mean(np.array(x)) for x in set_losses.values()]
+            set_accs = np.mean(np.array(set_accs))
+            losses_accs[tset.type][tset.domain_type] = (*set_losses, set_accs)
 
         # Printing results
         self._pretty_print(losses_accs)
@@ -150,6 +152,6 @@ class Trainer(object):
         for key in losses_accs.keys():
             print('* ' + key.name)
             for k,v in losses_accs[key].items():
-                print('\t[{0}] Loss: {1}, Accuracy: {2}'.format(k.name, *v))
+                print('  [{0}]\n  Loss(Seq / Adv / Joint): {1:.4f} / {2:.4f} / {3:.4f}\n  Accuracy: {4:.4f}\n'.format(k.name, *v))
 
 
