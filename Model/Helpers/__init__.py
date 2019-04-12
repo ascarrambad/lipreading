@@ -1,2 +1,2 @@
 
-__all__ = ['Layers', 'enums', 'funcs']
+__all__ = ['layers', 'enums', 'funcs']
