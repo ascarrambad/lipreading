@@ -2,6 +2,7 @@
 import os
 
 import Data
+import Data.Helpers.encoding as enc
 import Model
 
 import numpy as np
@@ -35,8 +36,8 @@ def cfg():
     ### NET SPECS
     # NetSpec = '*CONVLSTM!2-8_*DP_CONV16r!2-1_*MP!2-2_*DP_CONV32r!2-1_*MP!2-2_*FLATFEAT!3_FC128t-51t'
     # NetSpec = '*FLATFEAT!2-1_CONV32r!2-1_*MP!2-2_CONV64r!2-1_*MP!2-2_*DP_*FLATFEAT!3_*ORESHAPE_LSTM128t!0_FC51t'
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128-0_*MASKSEQ_*ADVSPLIT_FC128t-51i'
-    AdvSpec = '*GRADFLIP_FC128t-3i'
+    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128-0_*MASKSEQ_*ADVSPLIT_FC128t'
+    AdvSpec = '*GRADFLIP_FC128t-64t'
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -44,7 +45,7 @@ def cfg():
     BatchSize = 64 # MULTIPLIED BY 2 (source and target)
     LearnRate = 0.001
     InitStd = 0.1
-    EarlyStoppingCondition = 3 # SourceValid
+    EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingPatience = 10
 
     OutDir = 'TEST.outdir'
@@ -98,6 +99,10 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
+    # Adding classification layers
+    NetSpec += '_FC(SeqClassif){0}i'.format(enc.word_classes_count())
+    AdvSpec += '_FC(SpkClassif){0}i'.format(enc.speaker_classes_count())
+
     # Model Builder
     builder = Model.Builder(InitStd)
 
@@ -114,7 +119,8 @@ def main(
     builder.add_specification(AdvSpec, 'ADVSPLIT-9/Input', 'DomainTrgs')
     builder.build_model()
 
-    stopping_type = Model.StoppingType(EarlyStoppingCondition)
+    # Training
+    stopping_type = Model.StoppingType[EarlyStoppingCondition]
     trainer = Model.Trainer(MaxEpochs, LearnRate, builder.graph_specs, builder.placeholders, TensorboardDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
