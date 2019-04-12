@@ -1,7 +1,7 @@
 
 import numpy as np
 
-from .Helpers import funcs
+from ..Helpers import funcs
 
 class Batch(object):
     """docstring for Batch"""

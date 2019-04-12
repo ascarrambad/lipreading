@@ -2,7 +2,7 @@
 import numpy as np
 
 from .Batch import Batch
-from .Helpers import funcs
+from ..Helpers import funcs
 
 class Set(object):
     def __init__(self, domain_data, batch_size, permute=True):

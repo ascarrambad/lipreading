@@ -7,8 +7,8 @@ import pickle
 import numpy as np
 
 from .Helpers import funcs, consts, encoding, enums
-from .Item import Item
-from .Domain import Domain
+from .Structures.Item import Item
+from .Structures.Domain import Domain
 
 class Loader(object):
     def __init__(self, *domain_spk):
