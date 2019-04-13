@@ -17,7 +17,7 @@ class Trainer(object):
         self.learning_rate = learning_rate
         self._tensorboard_path = tensorboard_path
 
-        self.losses = [x.loss for x in self._graph_specs]
+        self.losses = [x.loss for x in self._graph_specs if x.loss != None]
         jloss = tf.identity(sum(self.losses), name='JointLoss')
         self.losses.append(jloss)
 

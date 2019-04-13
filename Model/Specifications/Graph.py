@@ -11,9 +11,13 @@ class Graph(object):
         self.input_name = input_name
         self.target_name = target_name
 
-        specs = string_spec.split('_')
+        self.loss = None
+        self.hits = None
+        self.accuracy = None
 
         self.layers = {}
+
+        specs = string_spec.split('_')
         for idx, spec in enumerate(specs):
             layer = Layer(spec, idx)
             self.layers[layer.name] = layer
