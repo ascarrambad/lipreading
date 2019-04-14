@@ -4,10 +4,10 @@ import tensorflow as tf
 
 from .Helpers import enums
 
-class Trainer(object):
+class AdvTrainer(object):
 
     def __init__(self, epochs, learning_rate, graph_specs, placeholders, tensorboard_path=None):
-        super(Trainer, self).__init__()
+        super(AdvTrainer, self).__init__()
 
         assert tensorboard_path != ''
 
