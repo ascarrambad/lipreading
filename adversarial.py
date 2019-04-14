@@ -34,9 +34,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    # NetSpec = '*CONVLSTM!2-8_*DP_CONV16r!2-1_*MP!2-2_*DP_CONV32r!2-1_*MP!2-2_*FLATFEAT!3_FC128t-51t'
-    # NetSpec = '*FLATFEAT!2-1_CONV32r!2-1_*MP!2-2_CONV64r!2-1_*MP!2-2_*DP_*FLATFEAT!3_*ORESHAPE_LSTM128t!0_FC51t'
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128-0_*MASKSEQ_*ADVSPLIT_FC128t'
+    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ_*ADVSPLIT_FC128t'
     AdvSpec = '*GRADFLIP_FC128t-64t'
     ObservedGrads = '' #separate by _
 
@@ -58,15 +56,15 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        SourceSpeakers,TargetSpeakers,ExtraSpeakers,WordsPerSpeaker,
+        SourceSpeakers, TargetSpeakers, ExtraSpeakers, WordsPerSpeaker,
         # Data
-        VideoNorm,Shuffle,InitStd,
+        VideoNorm, Shuffle, InitStd,
         # NN settings
-        NetSpec,AdvSpec,
+        NetSpec, AdvSpec,
         # Training settings
-        BatchSize,LearnRate,MaxEpochs,EarlyStoppingCondition,EarlyStoppingPatience,
+        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads,OutDir,TensorboardDir,_config
+        ObservedGrads, OutDir, TensorboardDir, _config
         ):
     print('Config directory is:',_config)
 
@@ -121,7 +119,7 @@ def main(
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, LearnRate, builder.graph_specs, builder.placeholders, TensorboardDir)
+    trainer = Model.AdvTrainer(MaxEpochs, LearnRate, builder.graph_specs, builder.placeholders, TensorboardDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
