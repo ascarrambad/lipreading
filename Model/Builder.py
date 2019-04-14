@@ -1,4 +1,5 @@
 
+import numpy as np
 import tensorflow as tf
 
 from .Specifications.Graph import Graph
@@ -38,12 +39,17 @@ class Builder(object):
         graph_spec = Graph(spec_str, input_name, target_name)
         self.graph_specs.append(graph_spec)
 
-    def build_model(self):
-        for graph in self.graph_specs:
-            if graph.input_name in self.placeholders:
-                in_tensor = self.placeholders[graph.input_name]
+    def build_model(self, build_order=None):
+        if build_order is None:
+            build_order = list(range(len(self.graph_specs)))
+
+        for i in build_order:
+            graph = self.graph_specs[i]
+
+            if type(graph.input_name) is list:
+                in_tensor = list(map(lambda x: self._get_tensor(x), graph.input_name))
             else:
-                in_tensor = tf.get_default_graph().get_tensor_by_name(graph.input_name + ':0')
+                in_tensor = self._get_tensor(graph.input_name)
 
             if graph.target_name in self.placeholders:
                 trg_tensor = self.placeholders[graph.target_name]
@@ -52,3 +58,8 @@ class Builder(object):
 
             graph.build(in_tensor, trg_tensor, self.init_std)
 
+    def _get_tensor(self, name):
+        if name in self.placeholders:
+            return self.placeholders[name]
+        else:
+            return tf.get_default_graph().get_tensor_by_name(name + ':0')
