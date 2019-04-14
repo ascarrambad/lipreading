@@ -33,9 +33,8 @@ class ClassicTrainer(object):
 
     def train(self, train_set, valid_sets, stopping_type, stopping_patience):
         assert self.session is not None
-        assert len(train_sets) > 0
 
-        valid_sets = train_sets + valid_sets
+        valid_sets = [train_set] + valid_sets
 
         # Variables init and Tensorflow setup
         self._training_current_best = (0,0)
@@ -48,7 +47,7 @@ class ClassicTrainer(object):
             batch = train_set.next_batch()
 
             # Training
-            while None not in batches:
+            while batch is not None:
                 # Graph execution
                 self._execute([self.optimizer], batch)
 
@@ -138,6 +137,4 @@ class ClassicTrainer(object):
         for key in losses_accs.keys():
             print('* ' + key.name)
             for k,v in losses_accs[key].items():
-                print('  [{0}]\n  Loss: {1:.4f}\n  Accuracy: {4:.4f}\n'.format(k.name, *v))
-
-
+                print('  [{0}]\n  Loss: {1:.4f}\n  Accuracy: {2:.4f}\n'.format(k.name, *v))
