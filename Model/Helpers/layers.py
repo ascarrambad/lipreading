@@ -51,18 +51,42 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride, depth
 
     return out_tensor
 
+# CONVTD(Conv)12r!2-2
+# in_tensor = [batch_size, height, width, channels]
+def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, stride, max_seq_len=75, depthwise=False):
+
+    kernel = int(kernel)
+    stride = int(stride)
+    max_seq_len = int(max_seq_len)
+    depthwise = bool(int(depthwise))
+
+    in_channels = in_tensor.shape.as_list()[-1]
+
+    filters = _weight_variable([max_seq_len,kernel,kernel,in_channels,out_channels], init_std, name='BigFilters')
+    filters = tf.identity(filters[:tf.shape(in_tensor)[1],], name='ActualFilters')
+
+    out_tensor = tf.nn.conv3d(input=in_tensor,
+                              filter=filters,
+                              strides=[1,1,stride,stride,1],
+                              padding='SAME',
+                              name='Convolution')
+
+    out_tensor = _add_activation_func(out_tensor, activ_func)
+
+    return out_tensor
+
 ################################################################################
 ############################### SPECIAL LAYERS #################################
 ################################################################################
 
 # *LSTM!64.64-0
-def _lstm(in_tensor, num_hidden_units, out_hidden_state=True, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
+def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
 
     num_hidden_units = [int(x) for x in num_hidden_units.split('.')]
     out_hidden_state = bool(int(out_hidden_state))
     zero_init = bool(int(zero_init))
 
-    cells = [tf.nn.rnn_cell.LSTMCell(num, state_is_tuple=True) for num in num_hidden_units]
+    cells = [tf.nn.rnn_cell.LSTMCell(num, state_is_tuple=True, name='LSTMCell-%d'%num) for num in num_hidden_units]
     multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
 
     seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
@@ -79,18 +103,19 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=True, zero_init=False, s
     return tf.identity(out_tensor, name='Output')
 
 # *ConvLSTM!2-12
-def _convlstm(in_tensor, kernel, num_filters, conv_ndims=2, out_hidden_state=True, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
+def _convlstm(in_tensor, out_channels, kernel, conv_ndims=2, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
 
     kernel = int(kernel)
-    num_filters = int(num_filters)
+    out_channels = int(out_channels)
     conv_ndims = int(conv_ndims)
     out_hidden_state = bool(int(out_hidden_state))
     zero_init = bool(int(zero_init))
 
     in_shape = in_tensor.shape.as_list()[2:] # shape of tensor excluding batch_size as API required AND sequence_length
+
     cell = tf.contrib.rnn.ConvLSTMCell(conv_ndims=conv_ndims,
                                        input_shape=in_shape,
-                                       output_channels=num_filters,
+                                       output_channels=out_channels,
                                        kernel_shape=[kernel]*conv_ndims)
 
     seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
@@ -106,6 +131,7 @@ def _convlstm(in_tensor, kernel, num_filters, conv_ndims=2, out_hidden_state=Tru
 
     return tf.identity(out_tensor, name='Output')
 
+# *MASKSEQ
 def _mask_seq(in_tensor, mask_tensor_name='Inputs/SeqLengths'):
 
     seq_idx = tf.identity(tf.get_default_graph().get_tensor_by_name(mask_tensor_name + ':0') - 1, name='SeqIndices')
@@ -115,7 +141,7 @@ def _mask_seq(in_tensor, mask_tensor_name='Inputs/SeqLengths'):
 
     return tf.gather_nd(params=in_tensor, indices=idx, name='Output')
 
-# *ADVSPLIT(Adv)
+# *ADVSPLIT
 def _adversarial_split(in_tensor, train_tensor_name='Inputs/Training'):
 
     at_index = tf.identity(tf.cast(tf.shape(in_tensor)[0]/2, dtype=tf.int32), name='HalfBatchLength')
@@ -129,7 +155,7 @@ def _adversarial_split(in_tensor, train_tensor_name='Inputs/Training'):
 
     return tf.identity(out_tensor, name='Output')
 
-# *GRADFLIP(GReversal)
+# *GRADFLIP
 def _gradient_reversal(in_tensor, lambda_tensor_name='Inputs/Lambda'):
 
     lambda_tensor = tf.get_default_graph().get_tensor_by_name(lambda_tensor_name + ':0')
@@ -138,7 +164,7 @@ def _gradient_reversal(in_tensor, lambda_tensor_name='Inputs/Lambda'):
 
     return tf.identity(out_tensor, name='Output')
 
-# *FLATFEAT(Flat)!3
+# *FLATFEAT!3
 _orig_shape = None # Shape to be recovered by orig_shape layer
 def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 
@@ -150,7 +176,8 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
     assert len(in_tensor.shape) - num_to_flat >= 1
 
     if _orig_shape is None:
-        _orig_shape = (reversed_, tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:])
+        _orig_shape = (reversed_, tf.identity(input=tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:],
+                                              name='RemainingShape'))
 
     current_shape = in_tensor.shape.as_list()
     current_shape = [-1 if x is None else x for x in current_shape]
@@ -177,9 +204,9 @@ def _original_reshape(in_tensor):
     flat_feat = _orig_shape[1]
 
     if not reversed_:
-        new_shape = tf.concat([tf.shape(in_tensor)[:-1], flat_feat], axis=0)
+        new_shape = tf.concat([tf.shape(in_tensor)[:-1], flat_feat], axis=0, name='OrigShape')
     else:
-        new_shape = tf.concat([flat_feat, tf.shape(in_tensor)[1:]], axis=0)
+        new_shape = tf.concat([flat_feat, tf.shape(in_tensor)[1:]], axis=0, name='OrigShape')
 
     out_tensor = tf.reshape(tensor=in_tensor,
                             shape=new_shape,
@@ -189,9 +216,7 @@ def _original_reshape(in_tensor):
 
     return out_tensor
 
-
-
-# *DP(Dropout)!0.5
+# *DP!0.5
 def _dropout(in_tensor, keep_prob=0.5, train_tensor_name='Inputs/Training'):
 
     keep_prob = float(keep_prob)
@@ -206,8 +231,8 @@ def _dropout(in_tensor, keep_prob=0.5, train_tensor_name='Inputs/Training'):
 
     return tf.identity(dropout, name='Output')
 
-# *MP(MaxPooling)!2-2
-def _max_pool(in_tensor, kernel, stride):
+# *MP!2-2
+def _max_pool2d(in_tensor, kernel, stride):
 
     kernel = int(kernel)
     stride = int(stride)
@@ -218,6 +243,30 @@ def _max_pool(in_tensor, kernel, stride):
                           padding='SAME',
                           name='Output')
 
+def _max_pool3d(in_tensor, kernel, stride):
+
+    kernel = int(kernel)
+    stride = int(stride)
+
+    return tf.nn.max_pool3d(input=in_tensor,
+                            ksize=[1,1,kernel,kernel, 1],
+                            strides=[1,1,stride,stride,1],
+                            padding='SAME',
+                            name='Output')
+
+# *CONCAT!last
+def _concatenate(in_tensors, axis):
+
+    axis = int(axis)
+
+    shape = [-1 if x is None else x for x in in_tensors.shape.as_list()]
+
+    out_tensor = tf.concat(in_tensors, axis=axis, name='Concat')
+    new_shape = shape[1:-1] + [shape[-1]*2]
+    out_tensor = tf.reshape(out_tensor, shape=new_shape, name='Output')
+
+    return out_tensor
+
 ################################################################################
 ################################### HELPERS ####################################
 ################################################################################
@@ -225,6 +274,7 @@ def _max_pool(in_tensor, kernel, stride):
 layer_type = {
     'FC': _fullyconnected,
     'CONV': _conv2d,
+    'CONVTD': _conv3d,
     'LSTM': _lstm,
     'CONVLSTM': _convlstm,
     'MASKSEQ': _mask_seq,
@@ -233,7 +283,9 @@ layer_type = {
     'FLATFEAT': _flatfeatures,
     'ORESHAPE': _original_reshape,
     'DP': _dropout,
-    'MP': _max_pool,
+    'MP': _max_pool2d,
+    'MPTD': _max_pool3d,
+    'CONCAT': _concatenate,
 }
 
 def _add_activation_func(in_tensor, func):
@@ -249,9 +301,9 @@ def _add_activation_func(in_tensor, func):
         raise Exception('Nonlinearity %s not known' % func)
     return out
 
-def _weight_variable(shape, init_std, name):
+def _weight_variable(shape, init_std, name, validate_shape=True):
     with tf.name_scope(name):
         initial = tf.truncated_normal(shape, stddev=init_std, name='TruncatedNormal')
 
-    return tf.Variable(initial, name=name)
+    return tf.Variable(initial, validate_shape=validate_shape, name=name)
 
