@@ -35,16 +35,14 @@ class Layer(object):
             in_tensor = tf.identity(in_tensor, name='Input')
             self.tensors.append(in_tensor)
             if self.special:
-                out_tensor = layer_type[self.type](in_tensor, *self.args)
+                curr_tensor = layer_type[self.type](in_tensor, *self.args)
             else:
                 curr_tensor = in_tensor
                 for l in self.sublayers:
                     num_hidden_units = int(l[:-1])
                     activ_func = l[-1]
 
-                    out_tensor = layer_type[self.type](curr_tensor, num_hidden_units, init_std, activ_func, *self.args)
-                    self.tensors.append(out_tensor)
-
-        curr_tensor = out_tensor
+                    curr_tensor = layer_type[self.type](curr_tensor, num_hidden_units, init_std, activ_func, *self.args)
+                    self.tensors.append(curr_tensor)
 
         return curr_tensor

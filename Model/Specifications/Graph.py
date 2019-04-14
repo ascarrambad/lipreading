@@ -35,8 +35,9 @@ class Graph(object):
                                                                            logits=out_tensor,
                                                                            name='SoftmaxCrossEntropy')
                 self.loss = tf.reduce_mean(cross_entropy, name='Loss')
-                tf.summary.scalar('Loss', self.loss)
 
                 self.hits = tf.equal(tf.argmax(out_tensor, axis=1), tf.argmax(trg_tensor, axis=1), name='Hits')
                 self.accuracy = tf.reduce_mean(tf.cast(self.hits, tf.float32), name='Accuracy')
+
+                tf.summary.scalar('Loss', self.loss)
                 tf.summary.scalar('Accuracy', self.accuracy)
