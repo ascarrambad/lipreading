@@ -24,6 +24,7 @@ class Loader(object):
         all_speakers = sorted(list(set().union(*all_speakers)))
         self.domains_speakers[enums.DomainType.ALL] = all_speakers
 
+        encoding.encode_words()
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
@@ -127,7 +128,7 @@ class Loader(object):
                 sequence = None
                 illegal_frames = list(range(consts.TOTAL_MAX_FRAME))
 
-            words_frames = seq_data[seqKey]
+            words_frames = seq_data[seqKey] # [(word, fromFrame, toFrame)]
 
             # iterate over words and fill return objects
             for word_frames in words_frames:
@@ -153,18 +154,14 @@ class Loader(object):
                 # key = seqKey + ':' + word
 
                 data = sequence[fromFrame:fromFrame + seq_length]
-                data_lengths = np.array(seq_length)
-
-                one_hot = np.diag(np.ones(encoding.word_classes_count(), dtype=np.int))
-                data_targets = one_hot[encoding.word_to_num(word)]
-
-                one_hot = np.diag(np.ones(encoding.speaker_classes_count(), dtype=np.int))
-                domain_targets = one_hot[encoding.speaker_to_num(speaker)]
+                data_length = np.array(seq_length)
+                data_target = encoding.word_one_hot(word)
+                domain_target = encoding.speaker_one_hot(speaker)
 
                 item = Item(data=data,
-                            data_lengths=data_lengths,
-                            data_targets=data_targets,
-                            domain_targets=domain_targets)
+                            data_length=data_length,
+                            data_target=data_target,
+                            domain_target=domain_target)
 
                 funcs.to_bin(item, binned_data, index_to_bin_pos)
 

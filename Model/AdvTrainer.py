@@ -148,7 +148,7 @@ class AdvTrainer(object):
 
         keys = self._placeholders.values()
         values = [batch.data,
-                  batch.data_masks,
+                  batch.data_lengths,
                   batch.data_targets,
                   batch.domain_targets,
                   lambda_,

@@ -5,11 +5,11 @@ from ..Helpers import funcs
 
 class Batch(object):
     """docstring for Batch"""
-    def __init__(self, data, data_masks, data_targets, domain_targets):
+    def __init__(self, data, data_lengths, data_targets, domain_targets):
         super(Batch, self).__init__()
 
         self.data = data
-        self.data_masks = data_masks
+        self.data_lengths = data_lengths
         self.data_targets = data_targets
         self.domain_targets = domain_targets
 
@@ -28,8 +28,8 @@ class Batch(object):
         pad_self_array, pad_oth_batch_array = funcs.pad_nparrays(paddings, arrays_to_be_padded)
 
         # Arrays to be concatenated
-        self_array = [pad_self_array, self.data_masks, self.data_targets, self.domain_targets]
-        oth_batch_array = [pad_oth_batch_array, oth_batch.data_masks, oth_batch.data_targets, oth_batch.domain_targets]
+        self_array = [pad_self_array, self.data_lengths, self.data_targets, self.domain_targets]
+        oth_batch_array = [pad_oth_batch_array, oth_batch.data_lengths, oth_batch.data_targets, oth_batch.domain_targets]
 
         # Concatenate arrays & create new concatenated batch
         concat_arrays = []
