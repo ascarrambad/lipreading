@@ -68,12 +68,17 @@ class AdvTrainer(object):
                 batches = list(map(lambda x: x.next_batch(), train_sets))
 
             # Testing
-            print('EPOCH [{0}]'.format(epoch))
+            print('** EPOCH [{0}]'.format(epoch))
             losses_accs = self.test(valid_sets)
 
-            accs = {st: {dt: vv[1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
+            accs = {st: {dt: vv[-1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
+
             if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
+                best_e, best_v = self._training_current_best
+
                 print('Stopping at EPOCH [{0}] because stop condition has been reached'.format(epoch))
+                print('Condition satisfied at EPOCH [{0}], best result: {1}'.format(best_e, best_v))
+
                 return
 
     def test(self, test_sets):
@@ -131,7 +136,7 @@ class AdvTrainer(object):
             stopValue = accs[criteria.value[0]][criteria.value[1]]
 
             if stopValue > self._training_current_best[1]:
-                self._training_current_best = (epoch,stopValue)
+                self._training_current_best = (epoch, stopValue)
             elif epoch - self._training_current_best[0] > patience:
                 doStop = True
 
