@@ -30,7 +30,9 @@ class AdvTrainer(object):
         if session is not None:
             self.session.close()
 
-        self.session = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.session = tf.Session(config=config)
         self.session.run(tf.global_variables_initializer())
 
     def train(self, train_sets, valid_sets, stopping_type, stopping_patience):
