@@ -60,9 +60,16 @@ class ClassicTrainer(object):
             print('EPOCH [{0}]'.format(epoch))
             losses_accs = self.test(valid_sets)
 
+            # Retrieving accuracies for early stopping evaluation
             accs = {st: {dt: vv[1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
+
+            # Early stopping evaluation
             if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
+                best_e, best_v = self._training_current_best
+
                 print('Stopping at EPOCH [{0}] because stop condition has been reached'.format(epoch))
+                print('Condition satisfied at EPOCH [{0}], best result: {1}'.format(best_e, best_v))
+
                 return
 
     def test(self, test_sets):
