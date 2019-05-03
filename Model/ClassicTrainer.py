@@ -53,13 +53,13 @@ class ClassicTrainer(object):
                 batch.generate_difference_frames()
 
                 # Graph execution
-                self._execute([self.optimizer], batch)
+                self._execute([self.optimizer], batch, training=True)
 
                 # Load new Batches
                 batch = train_set.next_batch()
 
             # Testing
-            print('EPOCH [{0}]'.format(epoch))
+            print('**** [EPOCH {0}] ****'.format(epoch))
             losses_accs = self.test(valid_sets)
 
             # Retrieving accuracies for early stopping evaluation
@@ -69,8 +69,8 @@ class ClassicTrainer(object):
             if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
                 best_e, best_v = self._training_current_best
 
-                print('Stopping at EPOCH [{0}] because stop condition has been reached'.format(epoch))
-                print('Condition satisfied at EPOCH [{0}], best result: {1}'.format(best_e, best_v))
+                print('Stopping at [EPOCH {0}] because stop condition has been reached'.format(epoch))
+                print('Condition satisfied at [EPOCH {0}], best result: {1:.5f}'.format(best_e, best_v))
 
                 return
 
@@ -99,7 +99,7 @@ class ClassicTrainer(object):
                 acc = self._graph_specs[0].accuracy
 
                 # Graph execution
-                loss_, acc_ = self._execute([self.loss, acc], batch)
+                loss_, acc_ = self._execute([self.loss, acc], batch, training=False)
                 set_losses.append(loss_)
                 set_accs.append(acc_)
 
@@ -136,19 +136,20 @@ class ClassicTrainer(object):
 
         return doStop
 
-    def _execute(self, tensors, batch):
+    def _execute(self, tensors, batch, training):
 
         keys = self._placeholders.values()
         values = [batch.data_diffs,
                   batch.data_lengths-1,
                   batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
-                  batch.data_targets]
+                  batch.data_targets,
+                  training]
         feed = dict(zip(keys, values))
 
         return self.session.run(tensors, feed)
 
     def _pretty_print(self, losses_accs):
         for key in losses_accs.keys():
-            print('* ' + key.name)
+            print('  [{0}]'.format(key.name))
             for k,v in losses_accs[key].items():
-                print('  [{0}]\n  Loss: {1:.4f}\n  Accuracy: {2:.4f}\n'.format(k.name, *v))
+                print('    {0}\n    - Loss: {1:.5f}\n    - Accuracy: {2:.5f}\n'.format(k.name, *v))
