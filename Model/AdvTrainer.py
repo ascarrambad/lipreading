@@ -68,7 +68,7 @@ class AdvTrainer(object):
                 batches = list(map(lambda x: x.next_batch(), train_sets))
 
             # Testing
-            print('** EPOCH [{0}]'.format(epoch))
+            print('*** [EPOCH {0}] ***'.format(epoch))
             losses_accs = self.test(valid_sets)
 
             # Retrieving accuracies for early stopping evaluation
@@ -78,8 +78,8 @@ class AdvTrainer(object):
             if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
                 best_e, best_v = self._training_current_best
 
-                print('Stopping at EPOCH [{0}] because stop condition has been reached'.format(epoch))
-                print('Condition satisfied at EPOCH [{0}], best result: {1}'.format(best_e, best_v))
+                print('Stopping at [EPOCH {0}] because stop condition has been reached'.format(epoch))
+                print('Condition satisfied at [EPOCH {0}], best result: {1:.5f}'.format(best_e, best_v))
 
                 return
 
@@ -159,8 +159,8 @@ class AdvTrainer(object):
 
     def _pretty_print(self, losses_accs):
         for key in losses_accs.keys():
-            print('* ' + key.name)
+            print('  [{0}]'.format(key.name))
             for k,v in losses_accs[key].items():
-                print('  [{0}]\n  Loss(Seq / Adv / Joint): {1:.4f} / {2:.4f} / {3:.4f}\n  Accuracy: {4:.4f}\n'.format(k.name, *v))
+                print('    {0}\n    - Loss(Seq / Adv / Joint): {1:.5f} / {2:.5f} / {3:.5f}\n    - Accuracy: {4:.5f}\n'.format(k.name, *v))
 
 
