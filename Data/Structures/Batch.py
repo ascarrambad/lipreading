@@ -42,3 +42,5 @@ class Batch(object):
 
         return Batch(*concat_arrays)
 
+    def generate_difference_frames(self):
+        self.data_diffs = funcs.generate_difference_frames(self.data)

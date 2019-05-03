@@ -28,6 +28,15 @@ def any_element_in_range(element_list,range_from,range_to):
             return True
     return False
 
+def generate_difference_frames(data):
+    diffs = []
+    for seq in data:
+        pairs = list(zip(seq, seq[1:]))
+        diff = np.array([y-x for (x,y) in pairs])
+        diffs.append(diff)
+
+    return np.array(diffs)
+
 # put an element into its respective bin, and make a note in sqtb (sequence-to-bin)
 # key is the sequence key, item is a Item, bd and sqtb are the binnedData and sequenceToBinAndPos variables
 def to_bin(item, bd, sqmap):
