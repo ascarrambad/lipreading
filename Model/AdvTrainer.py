@@ -68,7 +68,7 @@ class AdvTrainer(object):
                 batches = list(map(lambda x: x.next_batch(), train_sets))
 
             # Testing
-            print('*** [EPOCH {0}] ***'.format(epoch))
+            print('**** [EPOCH {0}] ****'.format(epoch))
             losses_accs = self.test(valid_sets)
 
             # Retrieving accuracies for early stopping evaluation
