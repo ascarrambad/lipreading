@@ -37,11 +37,11 @@ def cfg():
     # #
     # TrgSpec = '*CONCAT!3_CONV256r!3-1_CONV128r!3-1_CONV256r!3-1_*FLATFEAT!3_FC64r'
     # #
-    DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ_FC128t'
+    DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2_FC128t_*DP_FC128t_*DP_FC128t'
+    CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
-    TrgSpec = '*CONCAT!1_FC128t_*DP_FC64t_*DP_FC128t'
+    TrgSpec = '*CONCAT!1_FC256t_FC128t_FC256t'
     #
     ObservedGrads = '' #separate by _
 
@@ -116,7 +116,7 @@ def main(
     # Create network
     builder.add_specification(DynSpec, 'DiffFrames', None)
     builder.add_specification(CntSpec, 'LastFrame', None)
-    builder.add_main_specification(TrgSpec, ['FC-9/Output', 'FC-5/Output'], 'WordTrgs')
+    builder.add_main_specification(TrgSpec, ['MASKSEQ-7/Output', 'FC-3_1/Output'], 'WordTrgs')
 
     builder.build_model(build_order=[1,2,0])
 
