@@ -42,8 +42,11 @@ class Set(object):
         bin_, pos = self._index_to_bin_pos[index]
         return self._binned_data[bin_][pos]
 
-    def repeat(self):
+    def repeat(self, permute=True):
         self._current_index = 0
+
+        if permute:
+            self._permutation = np.random.permutation(len(self._index_to_bin_pos))
 
     def get_all_data(self):
 
