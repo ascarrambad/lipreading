@@ -105,7 +105,7 @@ def main(
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    # builder.add_placeholder(tf.bool, [], 'Training')
+    builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
     builder.add_specification(DynSpec, 'DiffFrames', None)
