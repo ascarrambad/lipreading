@@ -101,7 +101,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    TrgSpec += '_FC(SeqClassif){0}i'.format(enc.word_classes_count())
+    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
