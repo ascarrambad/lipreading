@@ -267,6 +267,34 @@ def _concatenate(in_tensors, axis):
 
     return out_tensor
 
+# SOBEL
+def _sobel_edges(in_tensor, keep_channel=False):
+
+    keep_channel = reversed_ = bool(int(keep_channel))
+
+    new_shape = tf.concat([[-1], tf.shape(in_tensor)[2:]], axis=0, name='SobelShape')
+    reshaped = tf.reshape(tensor=in_tensor, shape=new_shape, name='SobelReshaped')
+
+    edge_maps = tf.identity(tf.image.sobel_edges(reshaped), name='SobelEdgeMaps')
+    reshaped = tf.reshape(tensor=edge_maps, shape=[-1, 2], name='ArcTanReshaped')
+
+    dy, dx = tf.unstack(reshaped, axis=-1)
+    gradient_maps = tf.atan2(dy, dx, name='SobelGradientEdgeMaps')
+
+    if keep_channel:
+        out_tensor = tf.reshape(tensor=gradient_maps, shape=tf.shape(in_tensor), name='Output')
+    else:
+        out_tensor = tf.reshape(tensor=gradient_maps, shape=tf.shape(in_tensor)[:-1], name='Output')
+
+    return out_tensor
+
+def _diff_frames(in_tensor):
+    prev = tf.identity(in_tensor[:,:-1], name='PreviousFrames')
+    next_ = tf.identity(in_tensor[:, 1:], name='NextFrames')
+    out_tensor = tf.identity(next_ - prev, name='Output')
+
+    return out_tensor
+
 ################################################################################
 ################################### HELPERS ####################################
 ################################################################################
@@ -286,6 +314,8 @@ layer_type = {
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
     'CONCAT': _concatenate,
+    'SOBEL': _sobel_edges,
+    'DIFF': _diff_frames,
 }
 
 def _add_activation_func(in_tensor, func):
