@@ -18,12 +18,9 @@ ex = sacred.Experiment('GRID_Adversarial')
 
 @ex.config
 def cfg():
-    # speakers, note: train, cv, split by _, speakers separated by -
-#     AllSpeakers = 's1_s1_s1'
-#     AllSpeakers = 's1-s2-s3-s4_s1-s2-s3-s4_s1-s2-s3-s4'
 
     #### DATA
-    AllSpeakers = 's1_s2_s3'
+    AllSpeakers = 's1-s2-s3_s4-s5-s6_s7-s8-s9'
     (SourceSpeakers,TargetSpeakers,ExtraSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -35,7 +32,7 @@ def cfg():
 
     ### NET SPECS
     NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ_*ADVSPLIT_FC128t'
-    AdvSpec = '*GRADFLIP_FC128t-64t'
+    AdvSpec = '*GRADFLIP_*DP_FC128t'
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -98,8 +95,8 @@ def main(
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    NetSpec += '_FC(SeqClassif){0}i'.format(enc.word_classes_count())
-    AdvSpec += '_FC(SpkClassif){0}i'.format(enc.speaker_classes_count())
+    NetSpec += '_FC{0}i'.format(enc.word_classes_count())
+    AdvSpec += '_FC{0}i'.format(enc.speaker_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
