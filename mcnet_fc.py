@@ -20,24 +20,19 @@ ex = sacred.Experiment('GRID_MCNet')
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2_s3-s4'
+    AllSpeakers = 's1_s2'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
     ### DATA PROCESSING
     VideoNorm = 'MV'
+    AddChannel = False
 
     ### TRAINING DATA
     Shuffle = 1
 
     ### NET SPECS
-    # DynSpec = '*FLATFEAT!2-1_CONV64r!5-1_*MP!2-2_CONV128r!5-1_*MP!2-2_CONV256r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!256-3_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV64r!3-1_CONV64r!3-1_*MP!2-2_CONV128r!3-1_CONV128r!3-1_*MP!2-2_CONV256r!3-1_CONV256r!3-1_CONV256r!3-1_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV256r!3-1_CONV128r!3-1_CONV256r!3-1_*FLATFEAT!3_FC64r'
-    # #
-    DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
+    DynSpec = '*DIFF_*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
     #
     CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
@@ -65,7 +60,7 @@ def main(
         # Speakers
         SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
         # Data
-        VideoNorm, Shuffle, InitStd,
+        VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
         DynSpec, CntSpec, TrgSpec,
         # Training settings
@@ -87,9 +82,9 @@ def main(
                               (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, add_channel=False)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, add_channel=False)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, add_channel=False)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
@@ -116,7 +111,7 @@ def main(
     # Create network
     builder.add_specification(DynSpec, 'DiffFrames', None)
     builder.add_specification(CntSpec, 'LastFrame', None)
-    builder.add_main_specification(TrgSpec, ['MASKSEQ-7/Output', 'FC-3_1/Output'], 'WordTrgs')
+    builder.add_main_specification(TrgSpec, ['MASKSEQ-8/Output', 'FC-3_1/Output'], 'WordTrgs')
 
     builder.build_model(build_order=[1,2,0])
 

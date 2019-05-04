@@ -50,7 +50,6 @@ class ClassicTrainer(object):
 
             # Training
             while batch is not None:
-                batch.generate_difference_frames()
 
                 # Graph execution
                 self._execute([self.optimizer], batch, training=True)
@@ -93,7 +92,6 @@ class ClassicTrainer(object):
 
             # Testing
             while batch is not None:
-                batch.generate_difference_frames()
 
                 # Accuracy tensor
                 acc = self._graph_specs[0].accuracy
@@ -139,7 +137,7 @@ class ClassicTrainer(object):
     def _execute(self, tensors, batch, training):
 
         keys = self._placeholders.values()
-        values = [batch.data_diffs,
+        values = [batch.data,
                   batch.data_lengths-1,
                   batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
                   batch.data_targets,
