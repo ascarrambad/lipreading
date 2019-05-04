@@ -26,6 +26,7 @@ def cfg():
 
     ### DATA PROCESSING
     VideoNorm = 'MV'
+    AddChannel = False
 
     ### TRAINING DATA
     Shuffle = 1
@@ -55,7 +56,7 @@ def main(
         # Speakers
         SourceSpeakers, TargetSpeakers, ExtraSpeakers, WordsPerSpeaker,
         # Data
-        VideoNorm, Shuffle, InitStd,
+        VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
         NetSpec, AdvSpec,
         # Training settings
@@ -78,9 +79,9 @@ def main(
                             (Data.DomainType.EXTRA, ExtraSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, add_channel=False)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, add_channel=False)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, add_channel=False)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
