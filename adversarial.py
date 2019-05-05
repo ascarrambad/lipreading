@@ -103,7 +103,7 @@ def main(
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Sequences')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
     builder.add_placeholder(train_source_set.domain_dtype, train_source_set.domain_shape, 'DomainTrgs')
@@ -111,7 +111,7 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification(NetSpec, 'Sequences', 'WordTrgs')
+    builder.add_main_specification(NetSpec, 'Frames', 'WordTrgs')
     builder.add_specification(AdvSpec, 'ADVSPLIT-9/Input', 'DomainTrgs')
     builder.build_model()
 

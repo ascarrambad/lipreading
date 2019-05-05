@@ -102,14 +102,14 @@ def main(
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'DiffFrames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification(DynSpec, 'DiffFrames', None)
+    builder.add_specification(DynSpec, 'Frames', None)
     builder.add_specification(CntSpec, 'LastFrame', None)
     builder.add_main_specification(TrgSpec, ['MASKSEQ-8/Output', 'FC-3_1/Output'], 'WordTrgs')
 
