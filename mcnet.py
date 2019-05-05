@@ -32,11 +32,11 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*DIFF_*FLATFEAT!2-1_CONV32r!5-1_*MP!2-2_CONV64r!5-1_*MP!2-2_CONV128r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!128-3_*MASKSEQ'
+    DynSpec = '*DIFF_*FLATFEAT!2-1_CONV16r!5-1_*MP!2-2_CONV32r!5-1_*MP!2-2_CONV64r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!64-3_*MASKSEQ'
     #
-    CntSpec = 'CONV32r!3-1_CONV32r!3-1_*MP!2-2_CONV64r!3-1_CONV64r!3-1_*MP!2-2_CONV128r!3-1_CONV128r!3-1_CONV128r!3-1_*MP!2-2'
+    CntSpec = 'CONV16r!3-1_CONV16r!3-1_*MP!2-2_CONV32r!3-1_CONV32r!3-1_*MP!2-2_CONV64r!3-1_CONV64r!3-1_CONV64r!3-1_*MP!2-2'
     #
-    TrgSpec = '*CONCAT!3_CONV128r!3-1_CONV64r!3-1_CONV128r!3-1_*FLATFEAT!3_FC128r'
+    TrgSpec = '*CONCAT!3_CONV64r!3-1_CONV32r!3-1_CONV64r!3-1_*FLATFEAT!3_FC64r'
     #
     ObservedGrads = '' #separate by _
 
@@ -48,8 +48,8 @@ def cfg():
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingPatience = 10
 
-    OutDir = 'TEST.outdir'
-    TensorboardDir = './tensorboard'
+    OutDir = 'Outdir/MCNet.VALID'
+    TensorboardDir = OutDir + '/tensorboard'
 
 ################################################################################
 #################################### SCRIPT ####################################

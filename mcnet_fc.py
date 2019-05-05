@@ -48,8 +48,8 @@ def cfg():
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingPatience = 10
 
-    OutDir = 'TEST.outdir'
-    TensorboardDir = './tensorboard'
+    OutDir = 'Outdir/MCNet.FC.VALID'
+    TensorboardDir = OutDir + '/tensorboard'
 
 ################################################################################
 #################################### SCRIPT ####################################
