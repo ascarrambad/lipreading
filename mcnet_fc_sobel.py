@@ -109,11 +109,11 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification(DynSpec, 'Frames', None)
-    builder.add_specification(CntSpec, 'LastFrame', None)
-    builder.add_main_specification(TrgSpec, ['MASKSEQ-9/Output', 'FC-3/Output'], 'WordTrgs')
+    builder.add_specification('DYN', DynSpec, 'Frames', None)
+    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
+    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-9/Output', 'CNT-FC-3/Output'], 'WordTrgs')
 
-    builder.build_model(build_order=[1,2,0])
+    builder.build_model(build_order=['DYN','CNT','EDC'])
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]

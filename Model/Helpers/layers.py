@@ -86,8 +86,8 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, 
     out_hidden_state = bool(int(out_hidden_state))
     zero_init = bool(int(zero_init))
 
-    cells = [tf.nn.rnn_cell.LSTMCell(num, state_is_tuple=True, name='LSTMCell-%d'%num) for num in num_hidden_units]
-    multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells, state_is_tuple=True)
+    cells = [tf.nn.rnn_cell.LSTMCell(num, name='LSTMCell-%d'%num) for num in num_hidden_units]
+    multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
 
     seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
 
@@ -332,8 +332,7 @@ def _add_activation_func(in_tensor, func):
     return out
 
 def _weight_variable(shape, init_std, name, validate_shape=True):
-    with tf.name_scope(name):
-        initial = tf.truncated_normal(shape, stddev=init_std, name='TruncatedNormal')
-
-    return tf.Variable(initial, validate_shape=validate_shape, name=name)
+    initial = tf.truncated_normal(shape, stddev=init_std, name='TruncatedNormal')
+    var = tf.get_variable(initializer=initial, validate_shape=validate_shape, name=name)
+    return var
 

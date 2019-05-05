@@ -5,9 +5,10 @@ from .Layer import Layer
 
 class Graph(object):
 
-    def __init__(self, string_spec, input_name, target_name):
+    def __init__(self, name, string_spec, input_name, target_name):
         super(Graph, self).__init__()
 
+        self.name = name
         self.input_name = input_name
         self.target_name = target_name
 
@@ -19,7 +20,7 @@ class Graph(object):
 
         specs = string_spec.split('_')
         for idx, spec in enumerate(specs):
-            layer = Layer(spec, idx)
+            layer = Layer(self.name, spec, idx)
             self.layers[layer.name] = layer
 
     def build(self, in_tensor, trg_tensor, init_std):
@@ -28,7 +29,7 @@ class Graph(object):
             curr_tensor = l.build(curr_tensor, init_std)
 
         if trg_tensor is not None:
-            with tf.name_scope('Classification'):
+            with tf.variable_scope(self.name + '-CLASSIF'):
                 out_tensor = tf.identity(curr_tensor, name='Logits')
 
                 cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,

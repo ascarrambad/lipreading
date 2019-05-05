@@ -27,21 +27,24 @@ class Builder(object):
         self.graph_specs = []
 
     def add_placeholder(self, dtype, shape, name):
-        with tf.name_scope('Inputs/'):
+        with tf.variable_scope('Inputs/'):
             plc = tf.placeholder(dtype, shape, name)
             self.placeholders[name] = plc
 
-    def add_main_specification(self, spec_str, input_name, target_name):
-        graph_spec = Graph(spec_str, input_name, target_name)
+    def add_main_specification(self, name, spec_str, input_name, target_name):
+        graph_spec = Graph(name, spec_str, input_name, target_name)
         self.graph_specs.insert(0, graph_spec)
 
-    def add_specification(self, spec_str, input_name, target_name):
-        graph_spec = Graph(spec_str, input_name, target_name)
+    def add_specification(self, name, spec_str, input_name, target_name):
+        graph_spec = Graph(name, spec_str, input_name, target_name)
         self.graph_specs.append(graph_spec)
 
     def build_model(self, build_order=None):
         if build_order is None:
             build_order = list(range(len(self.graph_specs)))
+        else:
+            name_idx = {x.name:i for i,x in enumerate(self.graph_specs)}
+            build_order = [name_idx[x] for x in build_order]
 
         for i in build_order:
             graph = self.graph_specs[i]

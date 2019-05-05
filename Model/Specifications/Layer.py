@@ -15,7 +15,7 @@ SPEC = SPECIAL + TYPE + NAME + LAYERS + ARGS
 
 class Layer(object):
 
-    def __init__(self, spec_str, index):
+    def __init__(self, graph_name, spec_str, index):
         super(Layer, self).__init__()
 
         self.index = index
@@ -24,14 +24,14 @@ class Layer(object):
 
         self.special = match.group('special') is '*'
         self.type = match.group('type')
-        self.name = match.group('name').strip('()') if match.group('name') is not None else '{0}-{1}'.format(self.type, index)
+        self.name = match.group('name').strip('()') if match.group('name') is not None else '{0}-{1}-{2}'.format(graph_name, self.type, index)
         self.sublayers = match.group('sublayers').split('-') if not self.special else []
         self.args = match.group('args').split('-') if match.group('args') is not None else []
 
         self.tensors = []
 
     def build(self, in_tensor, init_std):
-        with tf.name_scope(self.name):
+        with tf.variable_scope(self.name):
             in_tensor = tf.identity(in_tensor, name='Input')
             self.tensors.append(in_tensor)
             if self.special:

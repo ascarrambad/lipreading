@@ -111,8 +111,8 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification(NetSpec, 'Frames', 'WordTrgs')
-    builder.add_specification(AdvSpec, 'ADVSPLIT-9/Input', 'DomainTrgs')
+    builder.add_main_specification('WRD', NetSpec, 'Frames', 'WordTrgs')
+    builder.add_specification('SPK', AdvSpec, 'WRD-ADVSPLIT-9/Input', 'DomainTrgs')
     builder.build_model()
 
     # Training
