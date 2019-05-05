@@ -31,6 +31,9 @@ class ClassicTrainer(object):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.session = tf.Session(config=config)
+
+        self._setup_tensorboard()
+
         self.session.run(tf.global_variables_initializer())
 
     def train(self, train_set, valid_sets, stopping_type, stopping_patience):
@@ -40,9 +43,9 @@ class ClassicTrainer(object):
 
         # Variables init and Tensorflow setup
         self._training_current_best = (0,0)
-        self._setup_tensorboard()
 
         # Epochs loop
+        summ_idx = 0
         for epoch in range(self.epochs):
             # Load initial batches
             train_set.repeat()
@@ -52,14 +55,15 @@ class ClassicTrainer(object):
             while batch is not None:
 
                 # Graph execution
-                self._execute([self.optimizer], batch, training=True)
+                _, summ = self._execute([self.optimizer, self.summaries], batch, training=True, step=summ_idx)
+                self._train_writer.add_summary(summ, summ_idx)
 
                 # Load new Batches
                 batch = train_set.next_batch()
+                summ_idx += 1
 
             # Testing
-            print('**** [EPOCH {0}] ****'.format(epoch))
-            losses_accs = self.test(valid_sets)
+            losses_accs = self.test(valid_sets, epoch)
 
             # Retrieving accuracies for early stopping evaluation
             accs = {st: {dt: vv[1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
@@ -73,7 +77,7 @@ class ClassicTrainer(object):
 
                 return
 
-    def test(self, test_sets):
+    def test(self, test_sets, epoch=None):
         # Make sure batch iterators are reset
         list(map(lambda x: x.repeat(), test_sets))
 
@@ -89,6 +93,12 @@ class ClassicTrainer(object):
 
             # Load initial Batch
             batch = tset.next_batch()
+
+            # Tensorboard Summaries
+            summ = self._execute([self.summaries], batch, training=False)[0]
+            if tset.type != enums.SetType.TRAIN and epoch != None:
+                if tset.domain_type == enums.DomainType.SOURCE: self._validS_writer.add_summary(summ, epoch)
+                elif tset.domain_type == enums.DomainType.TARGET: self._validT_writer.add_summary(summ, epoch)
 
             # Testing
             while batch is not None:
@@ -110,15 +120,17 @@ class ClassicTrainer(object):
             losses_accs[tset.type][tset.domain_type] = (set_losses, set_accs)
 
         # Printing results
+        if epoch is not None:
+            print('**** [EPOCH {0}] ****'.format(epoch))
         self._pretty_print(losses_accs)
 
         return losses_accs
 
     def _setup_tensorboard(self):
         if self._tensorboard_path is not None:
-            self.train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
-            self.validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
-            self.validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
+            self._train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
+            self._validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
+            self._validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
 
             self.summaries = tf.summary.merge_all()
 
@@ -134,7 +146,7 @@ class ClassicTrainer(object):
 
         return doStop
 
-    def _execute(self, tensors, batch, training):
+    def _execute(self, tensors, batch, training, step=None):
 
         keys = self._placeholders.values()
         values = [batch.data,
@@ -144,7 +156,15 @@ class ClassicTrainer(object):
                   training]
         feed = dict(zip(keys, values))
 
-        return self.session.run(tensors, feed)
+        if training and step is not None:
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
+            res = self.session.run(tensors, feed_dict=feed, options=run_options, run_metadata=run_metadata)
+            self._train_writer.add_run_metadata(run_metadata, 'step-%d' % step)
+        else:
+            res = self.session.run(tensors, feed)
+
+        return res
 
     def _pretty_print(self, losses_accs):
         for key in losses_accs.keys():
