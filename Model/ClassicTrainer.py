@@ -16,6 +16,7 @@ class ClassicTrainer(object):
         self.epochs = epochs
         self.learning_rate = learning_rate
         self._tensorboard_path = tensorboard_path
+        self._tensorboard_active = False
 
         self.loss = self._graph_specs[0].loss
 
@@ -32,7 +33,8 @@ class ClassicTrainer(object):
         config.gpu_options.allow_growth = True
         self.session = tf.Session(config=config)
 
-        self._setup_tensorboard()
+        if self._tensorboard_path is not None:
+            self._setup_tensorboard()
 
         self.session.run(tf.global_variables_initializer())
 
@@ -55,8 +57,13 @@ class ClassicTrainer(object):
             while batch is not None:
 
                 # Graph execution
-                _, summ = self._execute([self.optimizer, self.summaries], batch, training=True, step=summ_idx)
-                self._train_writer.add_summary(summ, summ_idx)
+                feed = [self.optimizer]
+                if self._tensorboard_active:
+                    feed += [self.summaries]
+
+                results = self._execute(feed, batch, training=True, step=summ_idx)
+                if self._tensorboard_active:
+                    self._train_writer.add_summary(results[1], summ_idx)
 
                 # Load new Batches
                 batch = train_set.next_batch()
@@ -95,10 +102,12 @@ class ClassicTrainer(object):
             batch = tset.next_batch()
 
             # Tensorboard Summaries
-            summ = self._execute([self.summaries], batch, training=False)[0]
-            if tset.type != enums.SetType.TRAIN and epoch != None:
-                if tset.domain_type == enums.DomainType.SOURCE: self._validS_writer.add_summary(summ, epoch)
-                elif tset.domain_type == enums.DomainType.TARGET: self._validT_writer.add_summary(summ, epoch)
+            if self._tensorboard_active and epoch != None and tset.type != enums.SetType.TRAIN:
+                summ = self._execute([self.summaries], batch, training=False)[0]
+                if tset.domain_type == enums.DomainType.SOURCE:
+                    self._validS_writer.add_summary(summ, epoch)
+                elif tset.domain_type == enums.DomainType.TARGET:
+                    self._validT_writer.add_summary(summ, epoch)
 
             # Testing
             while batch is not None:
@@ -127,12 +136,13 @@ class ClassicTrainer(object):
         return losses_accs
 
     def _setup_tensorboard(self):
-        if self._tensorboard_path is not None:
-            self._train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
-            self._validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
-            self._validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
+        self._train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
+        self._validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
+        self._validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
 
-            self.summaries = tf.summary.merge_all()
+        self.summaries = tf.summary.merge_all()
+
+        self._tensorboard_active = True
 
     def _evaluate_stopping(self, epoch, accs, criteria, patience):
         doStop = False
@@ -160,7 +170,8 @@ class ClassicTrainer(object):
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
             res = self.session.run(tensors, feed_dict=feed, options=run_options, run_metadata=run_metadata)
-            self._train_writer.add_run_metadata(run_metadata, 'step-%d' % step)
+            if self._tensorboard_active:
+                self._train_writer.add_run_metadata(run_metadata, 'step-%d' % step)
         else:
             res = self.session.run(tensors, feed)
 
