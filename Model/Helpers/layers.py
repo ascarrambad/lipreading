@@ -259,13 +259,7 @@ def _concatenate(in_tensors, axis):
 
     axis = int(axis)
 
-    shape = [-1 if x is None else x for x in in_tensors.shape.as_list()]
-
-    out_tensor = tf.concat(in_tensors, axis=axis, name='Concat')
-    new_shape = shape[1:-1] + [shape[-1]*2]
-    out_tensor = tf.reshape(out_tensor, shape=new_shape, name='Output')
-
-    return out_tensor
+    return tf.concat(in_tensors, axis=axis, name='Output')
 
 # SOBEL
 def _sobel_edges(in_tensor, keep_channel=False):
