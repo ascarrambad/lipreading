@@ -32,8 +32,12 @@ class Layer(object):
 
     def build(self, in_tensor, init_std):
         with tf.variable_scope(self.name):
-            in_tensor = tf.identity(in_tensor, name='Input')
+            if type(in_tensor) is list:
+                in_tensor = [tf.identity(t, name='Input-%d'%i) for i,t in enumerate(in_tensor)]
+            else:
+                in_tensor = tf.identity(in_tensor, name='Input')
             self.tensors.append(in_tensor)
+
             if self.special:
                 curr_tensor = layer_type[self.type](in_tensor, *self.args)
             else:
