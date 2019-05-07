@@ -53,21 +53,19 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride, depth
 
 # CONVTD(Conv)12r!2-2
 # in_tensor = [batch_size, height, width, channels]
-def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, stride, max_seq_len=75, depthwise=False):
+def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride):
 
     kernel = int(kernel)
     stride = int(stride)
-    max_seq_len = int(max_seq_len)
-    depthwise = bool(int(depthwise))
+    depth = int(depth)
 
     in_channels = in_tensor.shape.as_list()[-1]
 
-    filters = _weight_variable([max_seq_len,kernel,kernel,in_channels,out_channels], init_std, name='BigFilters')
-    filters = tf.identity(filters[:tf.shape(in_tensor)[1],], name='ActualFilters')
+    filters = _weight_variable([depth,kernel,kernel,in_channels,out_channels], init_std, name='Filters')
 
     out_tensor = tf.nn.conv3d(input=in_tensor,
                               filter=filters,
-                              strides=[1,1,stride,stride,1],
+                              strides=[1,stride,stride,stride,1],
                               padding='SAME',
                               name='Convolution')
 
@@ -249,8 +247,8 @@ def _max_pool3d(in_tensor, kernel, stride):
     stride = int(stride)
 
     return tf.nn.max_pool3d(input=in_tensor,
-                            ksize=[1,1,kernel,kernel, 1],
-                            strides=[1,1,stride,stride,1],
+                            ksize=[1,kernel,kernel,kernel, 1],
+                            strides=[1,stride,stride,stride,1],
                             padding='SAME',
                             name='Output')
 
@@ -289,6 +287,12 @@ def _diff_frames(in_tensor):
 
     return out_tensor
 
+def _scaler(in_tensor):
+    min_ = tf.reduce_min(in_tensor)
+    return tf.div(x=tf.subtract(in_tensor, min_),
+                  y=tf.subtract(tf.reduce_max(in_tensor), min_),
+                  name='Output')
+
 ################################################################################
 ################################### HELPERS ####################################
 ################################################################################
@@ -310,6 +314,7 @@ layer_type = {
     'CONCAT': _concatenate,
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
+    'SCALE': _scaler,
 }
 
 def _add_activation_func(in_tensor, func):
