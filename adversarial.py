@@ -115,14 +115,47 @@ def main(
     builder.add_specification('SPK', AdvSpec, 'WRD-ADVSPLIT-9/Input', 'DomainTrgs')
     builder.build_model()
 
+    # Setup Optimizer, Loss, Accuracy
+    optimizer = tf.train.AdamOptimizer(LearnRate)
+
+    ## AllLosses array & JointLoss creation
+    losses = [x.loss for x in builder.graph_specs if x.loss != None]
+    jloss = tf.identity(sum(losses), name='JointLoss')
+    losses.append(jloss)
+
+    tf.summary.scalar('JointLoss', jloss)
+
+    ## Losses dictionary
+    lkeys = ['Seq', 'Adv', 'Joint']
+    losses = dict(zip(lkeys, losses))
+
+    accuracy = builder.graph_specs[0].accuracy
+
+    # Feed Builder
+    def feed_builder(epoch, batch, training):
+
+        p = float(epoch) / MaxEpochs
+        lambda_ = 2. / (1. + np.exp(-10. * p)) - 1
+
+        keys = builder.placeholders.values()
+        values = [batch.data,
+                  batch.data_lengths,
+                  batch.data_targets,
+                  batch.domain_targets,
+                  lambda_,
+                  training]
+
+        return dict(zip(keys, values))
+
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.AdvTrainer(MaxEpochs, LearnRate, builder.graph_specs, builder.placeholders, TensorboardDir)
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, jloss, losses, TensorboardDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
                   stopping_type=stopping_type,
-                  stopping_patience=EarlyStoppingPatience)
+                  stopping_patience=EarlyStoppingPatience,
+                  feed_builder=feed_builder)
 
 
 

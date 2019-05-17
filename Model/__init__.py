@@ -1,5 +1,4 @@
 
 from .Builder import Builder
-from .AdvTrainer import AdvTrainer
-from .ClassicTrainer import ClassicTrainer
+from .Trainer import Trainer
 from .Helpers.enums import *

@@ -42,7 +42,7 @@ def cfg():
 
     # NET TRAINING
     MaxEpochs = 100
-    BatchSize = 64 # MULTIPLIED BY 2 (source and target)
+    BatchSize = 64
     LearnRate = 0.001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
@@ -115,14 +115,39 @@ def main(
 
     builder.build_model(build_order=['DYN','CNT','EDC'])
 
+    # Setup Optimizer, Loss, Accuracy
+    optimizer = tf.train.AdamOptimizer(LearnRate)
+
+    ## AllLosses array & JointLoss creation
+    losses = [x.loss for x in builder.graph_specs if x.loss != None]
+
+    ## Losses dictionary
+    lkeys = ['Seq']
+    losses = dict(zip(lkeys, losses))
+
+    accuracy = builder.graph_specs[0].accuracy
+
+    # Feed Builder
+    def feed_builder(epoch, batch, training):
+
+        keys = builder.placeholders.values()
+        values = [batch.data,
+                  batch.data_lengths-1,
+                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
+                  batch.data_targets,
+                  training]
+
+        return dict(zip(keys, values))
+
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.ClassicTrainer(MaxEpochs, LearnRate, builder.graph_specs, builder.placeholders, TensorboardDir)
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir)
     trainer.init_session()
-    trainer.train(train_set=train_source_set,
+    trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
                   stopping_type=stopping_type,
-                  stopping_patience=EarlyStoppingPatience)
+                  stopping_patience=EarlyStoppingPatience,
+                  feed_builder=feed_builder)
 
 
 
