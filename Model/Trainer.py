@@ -67,14 +67,14 @@ class Trainer(object):
 
                 results = self._execute(train_tensors, feed, training=True, step=summ_idx)
                 if self.tensorboard_status:
-                    self._train_writer.add_summary(results[1], summ_idx)
+                    self._tboard_writers[enums.SetType.TRAIN][enums.SetType.SOURCE].add_summary(results[1], summ_idx)
 
                 # Load new Batches
                 batches = list(map(lambda x: x.next_batch(), train_sets))
                 summ_idx += 1
 
             # Testing
-            losses_accs = self.test(valid_sets, feed_builder, epoch)
+            losses_accs = self._test(valid_sets, feed_builder, summ_idx)
 
             # Retrieving accuracies for early stopping evaluation
             accs = {st: {dt: vv[-1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
@@ -88,7 +88,10 @@ class Trainer(object):
 
                 return
 
-    def test(self, test_sets, feed_builder, epoch=None):
+    def test(self, test_sets, feed_builder):
+        self._test(test_sets, feed_builder)
+
+    def _test(self, test_sets, feed_builder, tensorb_index=None):
         # Make sure batch iterators are reset
         list(map(lambda x: x.repeat(), test_sets))
 
@@ -99,42 +102,31 @@ class Trainer(object):
         for tset in test_sets:
 
             # Current loss and accuracy support arrays
-            set_losses = {k: [] for k in range(len(self.eval_losses.values()))}
-            set_accs = []
+            losses = []
+            acc = []
 
             # Load initial Batch
-            batch = tset.next_batch()
+            batch = tset.get_all_data()
+
+            feed = feed_builder(epoch, batch, False)
+
+            # Tensors to evaluate
+            tensors = list(self.eval_losses.values()) + [self.accuracy]
 
             # Tensorboard Summaries
-            if self.tensorboard_status and epoch != None and tset.type != enums.SetType.TRAIN:
+            if self.tensorboard_status and tensorb_index != None and !(tset.type == enums.SetType.TRAIN && tset.domain_type == enums.DomainType.SOURCE):
+                tensors.append(self.summaries)
 
-                feed = feed_builder(epoch, batch, False)
-                summ = self._execute([self.summaries], feed, training=False)[0]
+            # Graph execution
+            res = self._execute(tensors, feed, training=False)
+            losses = res[:-2]
+            acc = res[-2]
 
-                if tset.domain_type == enums.DomainType.SOURCE:
-                    self._validS_writer.add_summary(summ, epoch)
-                elif tset.domain_type == enums.DomainType.TARGET:
-                    self._validT_writer.add_summary(summ, epoch)
+            if self.tensorboard_status and tensorb_index != None and !(tset.type == enums.SetType.TRAIN && tset.domain_type == enums.DomainType.SOURCE):
+                self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], tensorb_index)
 
-            # Testing
-            while batch is not None:
-
-                feed = feed_builder(epoch, batch, False)
-
-                # Graph execution
-                tensors = list(self.eval_losses.values()) + [self.accuracy]
-                res = self._execute(tensors, feed, False)
-                for i,v in enumerate(res[:-1]):
-                    set_losses[i].append(v)
-                set_accs.append(res[-1])
-
-                # Load new Batch
-                batch = tset.next_batch()
-
-            # Compute mean
-            set_losses = [np.mean(np.array(x)) for x in set_losses.values()]
-            set_accs = np.mean(np.array(set_accs))
-            losses_accs[tset.type][tset.domain_type] = (*set_losses, set_accs)
+            # Save Results
+            losses_accs[tset.type][tset.domain_type] = (*losses, acc)
 
         # Printing results
         if epoch is not None:
@@ -144,9 +136,9 @@ class Trainer(object):
         return losses_accs
 
     def _setup_tensorboard(self):
-        self._train_writer = tf.summary.FileWriter(self._tensorboard_path + '/train', self.session.graph)
-        self._validS_writer = tf.summary.FileWriter(self._tensorboard_path + '/validS', self.session.graph)
-        self._validT_writer = tf.summary.FileWriter(self._tensorboard_path + '/validT', self.session.graph)
+        self.tboard_writers = {x.name:{y.name:tf.summary.FileWriter(self._tensorboard_path + x.name+'-'+y.name, self.session.graph)
+                                       for y in enums.DomainType}
+                               for x in enums.SetType}
 
         self.summaries = tf.summary.merge_all()
 
@@ -171,7 +163,7 @@ class Trainer(object):
             run_metadata = tf.RunMetadata()
             res = self.session.run(tensors, feed_dict=feed, options=run_options, run_metadata=run_metadata)
             if self.tensorboard_status:
-                self._train_writer.add_run_metadata(run_metadata, 'step-%d' % step)
+                self._tboard_writers[enums.SetType.TRAIN][enums.SetType.SOURCE].add_run_metadata(run_metadata, 'step-%d' % step)
         else:
             res = self.session.run(tensors, feed)
 
