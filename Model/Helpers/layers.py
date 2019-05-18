@@ -25,7 +25,7 @@ def _fullyconnected(in_tensor, num_hidden_units, init_std, activ_func):
 
 # CONV(Conv)12r!2-2
 # in_tensor = [batch_size, height, width, channels]
-def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride, depthwise=False):
+def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, depthwise=False):
 
     kernel = int(kernel)
     stride = int(stride)
@@ -53,7 +53,7 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride, depth
 
 # CONVTD(Conv)12r!2-2
 # in_tensor = [batch_size, height, width, channels]
-def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride):
+def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride=1):
 
     kernel = int(kernel)
     stride = int(stride)

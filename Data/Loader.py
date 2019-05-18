@@ -49,23 +49,6 @@ class Loader(object):
 
         return domain_data, feature_size
 
-    def _load_video_stats(self, speakers, normalization_vars):
-        assert normalization_vars in [ '', 'M', 'MV' ]
-
-        means = {} if 'M' in normalization_vars else None
-        stds = {} if 'V' in normalization_vars else None
-
-        for spk in speakers:
-            means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
-            stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
-
-            if 'M' in normalization_vars:
-                means[spk] = np.load(means_file)
-            if 'V' in normalization_vars:
-                stds[spk] = np.load(stds_file)
-
-        return (means, stds)
-
     # return {'speaker:seq': [[word, fromFrame, toFrame]]}
     def _collect_seq_data(self, dbtype, speakers, max_words_per_speaker):
 
@@ -99,6 +82,23 @@ class Loader(object):
                 seq_data[seqKey] = [(word,fromFrame,toFrame)]
 
         return seq_data
+
+    def _load_video_stats(self, speakers, normalization_vars):
+        assert normalization_vars in [ '', 'M', 'MV' ]
+
+        means = {} if 'M' in normalization_vars else None
+        stds = {} if 'V' in normalization_vars else None
+
+        for spk in speakers:
+            means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+            stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+
+            if 'M' in normalization_vars:
+                means[spk] = np.load(means_file)
+            if 'V' in normalization_vars:
+                stds[spk] = np.load(stds_file)
+
+        return (means, stds)
 
     def _load_and_bin(self, seq_data, speakers, sequence_processor, labelResamplingFactor=1):
 
