@@ -32,7 +32,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_CONV32r!5-1_*MP!2-2_CONV48r!5-1_*MP!2-2_*ORESHAPE_*CONVLSTM!64-5_*MASKSEQ_*FLATFEAT!3_*ADVSPLIT_FC100r_FC100r'
+    NetSpec = '*FLATFEAT!2-1_CONV32r!5_*MP!2-2_*DP_CONV48r!5_*MP!2-2_*DP_*ORESHAPE_*CONVLSTM!64-5_*MASKSEQ_*FLATFEAT!3_*ADVSPLIT_FC100r_FC100r'
     AdvSpec = '*GRADFLIP_FC100r'
     ObservedGrads = '' #separate by _
 
@@ -112,7 +112,7 @@ def main(
 
     # Create network
     builder.add_main_specification('WRD', NetSpec, 'Frames', 'WordTrgs')
-    builder.add_specification('SPK', AdvSpec, 'WRD-ADVSPLIT-9/Input', 'DomainTrgs')
+    builder.add_specification('SPK', AdvSpec, 'WRD-ADVSPLIT-11/Input', 'DomainTrgs')
     builder.build_model()
 
     # Setup Optimizer, Loss, Accuracy
