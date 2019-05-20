@@ -28,7 +28,7 @@ class Loader(object):
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
-    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, add_channel=False):
+    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, add_channel=False, verbose=False):
 
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != enums.DomainType.ALL]
         if dbtype == enums.SetType.TRAIN:
@@ -44,7 +44,7 @@ class Loader(object):
             seq_proc = funcs.sequence_processor(means, stds, add_channel)
 
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, verbose=verbose)
             domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
@@ -100,7 +100,7 @@ class Loader(object):
 
         return (means, stds)
 
-    def _load_and_bin(self, seq_data, speakers, sequence_processor, labelResamplingFactor=1):
+    def _load_and_bin(self, seq_data, speakers, sequence_processor, verbose, labelResamplingFactor=1):
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
@@ -124,7 +124,8 @@ class Loader(object):
                 (sequence, illegal_frames) = seq_pair
                 sequence = sequence_processor(sequence, speaker)
             except Exception as e:
-                print('Error for sequence %s: %s' % (seqKey,str(e)))
+                if verbose:
+                    print('Error for sequence %s: %s' % (seqKey,str(e)))
                 sequence = None
                 illegal_frames = list(range(consts.TOTAL_MAX_FRAME))
 
@@ -133,7 +134,8 @@ class Loader(object):
             # iterate over words and fill return objects
             for word_frames in words_frames:
                 if sequence is None:
-                    print('Ignoring %s: broken sequence %s' % (word_frames, seqKey))
+                    if verbose:
+                        print('Ignoring %s: broken sequence %s' % (word_frames, seqKey))
                     continue
 
                 (word, fromFrame, toFrame) = word_frames
@@ -142,12 +144,14 @@ class Loader(object):
                 rightDelta = (toFrame + 1) - sequence.shape[0]
 
                 if rightDelta > 0:
-                    print('VIDEO OVERFLOW for %s: %d' % (seqKey, rightDelta))
+                    if verbose:
+                        print('VIDEO OVERFLOW for %s: %d' % (seqKey, rightDelta))
                     toFrame -= rightDelta
                 seq_length = (toFrame + 1) - fromFrame
 
                 if seq_length <= 0 or funcs.any_element_in_range(illegal_frames, fromFrame, toFrame):
-                    print('SKIPPING VIDEO word %s in %s due to illegal frames' % (word, seqKey))
+                    if verbose:
+                        print('SKIPPING VIDEO word %s in %s due to illegal frames' % (word, seqKey))
                     continue
 
                 # finally collect data item!
