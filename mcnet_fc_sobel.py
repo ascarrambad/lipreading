@@ -122,7 +122,7 @@ def main(
     losses = [x.loss for x in builder.graph_specs if x.loss != None]
 
     ## Losses dictionary
-    lkeys = ['Seq']
+    lkeys = ['Wrd']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -145,6 +145,7 @@ def main(
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
+                  batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)

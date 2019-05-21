@@ -20,7 +20,7 @@ ex = sacred.Experiment('GRID_MCNet')
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1_s2'
+    AllSpeakers = 's1-s2-s3_s4-s5-s6'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -122,7 +122,7 @@ def main(
     losses = [x.loss for x in builder.graph_specs if x.loss != None]
 
     ## Losses dictionary
-    lkeys = ['Seq']
+    lkeys = ['Wrd']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -145,6 +145,7 @@ def main(
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
+                  batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)

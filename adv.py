@@ -32,8 +32,10 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_CONV32r!5_*MP!2-2_*DP_CONV48r!5_*MP!2-2_*DP_*ORESHAPE_*CONVLSTM!64-5_*MASKSEQ_*FLATFEAT!3_*ADVSPLIT_FC100r_FC100r'
-    AdvSpec = '*GRADFLIP_FC100r'
+    FexSpec = '*FLATFEAT!2-1_CONV32r!5_*MP!2-2_*DP!0.8_CONV48r!5_*MP!2-2_*DP!0.8_*ORESHAPE_*CONVLSTM!64-5_*MASKSEQ_*FLATFEAT!3_*ADVSPLIT'
+    WrdSpec = 'FC128t'
+    SpkSpec = '*GRADFLIP_*DP_FC128t'
+    #
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -58,7 +60,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        NetSpec, AdvSpec,
+        FexSpec, WrdSpec, SpkSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
@@ -96,8 +98,8 @@ def main(
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    NetSpec += '_FC{0}i'.format(enc.word_classes_count())
-    AdvSpec += '_FC{0}i'.format(enc.speaker_classes_count())
+    WrdSpec += '_FC{0}i'.format(enc.word_classes_count())
+    SpkSpec += '_FC{0}i'.format(enc.speaker_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -111,9 +113,10 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification('WRD', NetSpec, 'Frames', 'WordTrgs')
-    builder.add_specification('SPK', AdvSpec, 'WRD-ADVSPLIT-11/Input', 'DomainTrgs')
-    builder.build_model()
+    builder.add_main_specification('WRD', WrdSpec, 'FEX-ADVSPLIT-11/Output', 'WordTrgs')
+    builder.add_specification('FEX', FexSpec, 'Frames', None)
+    builder.add_specification('SPK', SpkSpec, 'FEX-ADVSPLIT-11/Input', 'DomainTrgs')
+    builder.build_model(build_order=['FEX','WRD','SPK'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
@@ -126,7 +129,7 @@ def main(
     tf.summary.scalar('JointLoss', jloss)
 
     ## Losses dictionary
-    lkeys = ['Seq', 'Adv', 'Joint']
+    lkeys = ['Wrd', 'Spk', 'Joint']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -153,6 +156,7 @@ def main(
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
+                  batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)

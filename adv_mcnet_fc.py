@@ -32,13 +32,15 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*DIFF_*FLATFEAT!2-1_*FLATFEAT!2_FC64r_FC128r_FC256r_*ORESHAPE_*LSTM!256_*MASKSEQ'
+    DynSpec = '*DIFF_*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2_FC64r_FC128r_FC256r'
+    CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
-    TrgSpec = '*CONCAT!1_FC256r_FC128r_FC256r_*ADVSPLIT_FC256r'
+    SplSpec = '*CONCAT!1_*ADVSPLIT'
     #
-    AdvSpec = '*GRADFLIP_FC256r'
+    WrdSpec = 'FC256t_FC128t_FC256t'
+    #
+    SpkSpec = '*GRADFLIP_FC128t'
     #
     ObservedGrads = '' #separate by _
 
@@ -64,7 +66,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, TrgSpec, AdvSpec,
+        DynSpec, CntSpec, SplSpec, WrdSpec, SpkSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
@@ -102,8 +104,8 @@ def main(
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
-    AdvSpec += '_FC{0}i'.format(enc.speaker_classes_count())
+    WrdSpec += '_FC{0}i'.format(enc.word_classes_count())
+    SpkSpec += '_FC{0}i'.format(enc.speaker_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -120,10 +122,11 @@ def main(
     # Create network
     builder.add_specification('DYN', DynSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-8/Output', 'CNT-FC-3/Output'], 'WordTrgs')
-    builder.add_specification('SPK', AdvSpec, 'EDC-ADVSPLIT-4/Input', 'DomainTrgs')
+    builder.add_specification('SPL', SplSpec, ['DYN-MASKSEQ-8/Output', 'CNT-FC-3/Output'], None)
+    builder.add_main_specification('WRD', WrdSpec, 'SPL-ADVSPLIT-1/Output', 'WordTrgs')
+    builder.add_specification('SPK', SpkSpec, 'SPL-ADVSPLIT-1/Input', 'DomainTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','EDC','SPK'])
+    builder.build_model(build_order=['DYN', 'CNT', 'SPL', 'WRD', 'SPK'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
@@ -136,7 +139,7 @@ def main(
     tf.summary.scalar('JointLoss', jloss)
 
     ## Losses dictionary
-    lkeys = ['Seq', 'Adv', 'Joint']
+    lkeys = ['Wrd', 'Spk', 'Joint']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -164,6 +167,7 @@ def main(
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
+                  batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)

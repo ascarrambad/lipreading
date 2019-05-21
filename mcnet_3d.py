@@ -14,39 +14,53 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_Adversarial')
+ex = sacred.Experiment('GRID_MCNet')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3_s4-s5-s6_s7-s8-s9'
-    (SourceSpeakers,TargetSpeakers,ExtraSpeakers) = AllSpeakers.split('_')
+    AllSpeakers = 's1_s2'
+    (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
     ### DATA PROCESSING
     VideoNorm = 'MV'
-    AddChannel = False
+    AddChannel = True
 
     ### TRAINING DATA
     Shuffle = 1
 
     ### NET SPECS
-    FexSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ_*ADVSPLIT'
-    WrdSpec = 'FC128t'
-    SpkSpec = '*GRADFLIP_*DP_FC128t'
+    # DynSpec = 'CONVTD64r!5-2_*MPTD!2-2_CONVTD128r!5-2_*MPTD!2-2_CONVTD256r!7-2_*MPTD!2-2_*CONVLSTM!256-7_*MASKSEQ'
+    # #
+    # CntSpec = 'CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_*MP!2-2_CONV256r!3_CONV256r!3_CONV256r!3_*MP!2-2'
+    # #
+    # TrgSpec = '*CONCAT!3_CONV256r!3-1_CONV128r!3-1_CONV256r!3-1_*FLATFEAT!3_FC256r'
+
+    # DynSpec = 'CONVTD32r!5-2_*MPTD!2-2_CONVTD64r!5-2_*MPTD!2-2_CONVTD128r!7-2_*MPTD!2-2_*CONVLSTM!128-7_*MASKSEQ'
+    # #
+    # CntSpec = 'CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_CONV128r!3_*MP!2-2'
+    # #
+    # TrgSpec = '*CONCAT!3_CONV128r!3_CONV64r!3_CONV128r!3_*FLATFEAT!3_FC128r'
+
+    DynSpec = 'CONVTD16r!5-2_*MPTD!2-2_CONVTD32r!5-2_*MPTD!2-2_CONVTD64r!7-2_*MPTD!2-2_*CONVLSTM!64-7_*MASKSEQ'
+    #
+    CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3-1_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
+    #
+    TrgSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3_*FLATFEAT!3_FC64r'
     #
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
     MaxEpochs = 100
-    BatchSize = 64 # MULTIPLIED BY 2 (source and target)
+    BatchSize = 64
     LearnRate = 0.001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/ADV.FC.VALID'
+    OutDir = 'Outdir/MCNet.3D.VALID'
     TensorboardDir = OutDir + '/tensorboard'
 
 ################################################################################
@@ -56,11 +70,11 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        SourceSpeakers, TargetSpeakers, ExtraSpeakers, WordsPerSpeaker,
+        SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        FexSpec, WrdSpec, SpkSpec,
+        DynSpec, CntSpec, TrgSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
@@ -77,8 +91,7 @@ def main(
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
-                            (Data.DomainType.TARGET, TargetSpeakers),
-                            (Data.DomainType.EXTRA, ExtraSpeakers))
+                            (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
@@ -87,19 +100,15 @@ def main(
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    train_target_set = Data.Set(train_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
     valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    valid_extra_set = Data.Set(valid_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    WrdSpec += '_FC{0}i'.format(enc.word_classes_count())
-    SpkSpec += '_FC{0}i'.format(enc.speaker_classes_count())
+    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -107,29 +116,25 @@ def main(
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(train_source_set.domain_dtype, train_source_set.domain_shape, 'DomainTrgs')
-    builder.add_placeholder(tf.float32, [], 'Lambda')
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification('WRD', WrdSpec, 'FEX-ADVSPLIT-9/Output', 'WordTrgs')
-    builder.add_specification('FEX', FexSpec, 'Frames', None)
-    builder.add_specification('SPK', SpkSpec, 'FEX-ADVSPLIT-9/Input', 'DomainTrgs')
-    builder.build_model(build_order=['FEX','WRD','SPK'])
+    builder.add_specification('DYN', DynSpec, 'Frames', None)
+    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
+    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-7/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+
+    builder.build_model(build_order=['DYN','CNT','EDC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
 
     ## AllLosses array & JointLoss creation
     losses = [x.loss for x in builder.graph_specs if x.loss != None]
-    jloss = tf.identity(sum(losses), name='JointLoss')
-    losses.append(jloss)
-
-    tf.summary.scalar('JointLoss', jloss)
 
     ## Losses dictionary
-    lkeys = ['Wrd', 'Spk', 'Joint']
+    lkeys = ['Wrd']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -137,25 +142,21 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        p = float(epoch) / MaxEpochs
-        lambda_ = 2. / (1. + np.exp(-10. * p)) - 1
-
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths,
+                  batch.data_lengths-1,
+                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
                   batch.data_targets,
-                  batch.domain_targets,
-                  lambda_,
                   training]
 
         return dict(zip(keys, values))
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, jloss, losses, TensorboardDir)
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir)
     trainer.init_session()
-    trainer.train(train_sets=[train_source_set, train_target_set],
-                  valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
+    trainer.train(train_sets=[train_source_set],
+                  valid_sets=[valid_source_set, valid_target_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
