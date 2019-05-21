@@ -36,7 +36,7 @@ class Trainer(object):
 
         self.session.run(tf.global_variables_initializer())
 
-    def train(self, train_sets, valid_sets, stopping_type, stopping_patience, feed_builder):
+    def train(self, train_sets, valid_sets, batched_valid, stopping_type, stopping_patience, feed_builder):
         assert self.session is not None
         assert len(train_sets) > 0
 
@@ -44,9 +44,10 @@ class Trainer(object):
 
         # Variables init
         self._training_current_best = (0,0)
+        tensorb_index = 0
+        self._last_tensorb_index = [0]*len(valid_sets)
 
         # Epochs loop
-        summ_idx = 0
         for epoch in range(self.epochs):
             # Load initial batches
             list(map(lambda x: x.repeat(), train_sets))
@@ -65,16 +66,16 @@ class Trainer(object):
 
                 feed = feed_builder(epoch, final_batch, True)
 
-                results = self._execute(train_tensors, feed, training=True, step=summ_idx)
+                results = self.session.run(train_tensors, feed)
                 if self.tensorboard_status:
-                    self._tboard_writers[enums.SetType.TRAIN][enums.SetType.SOURCE].add_summary(results[1], summ_idx)
+                    self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], tensorb_index)
 
                 # Load new Batches
                 batches = list(map(lambda x: x.next_batch(), train_sets))
-                summ_idx += 1
+                tensorb_index += 1
 
             # Testing
-            losses_accs = self._test(valid_sets, feed_builder, summ_idx)
+            losses_accs = self._test(valid_sets, batched_valid, feed_builder, epoch)
 
             # Retrieving accuracies for early stopping evaluation
             accs = {st: {dt: vv[-1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
@@ -88,10 +89,10 @@ class Trainer(object):
 
                 return
 
-    def test(self, test_sets, feed_builder):
-        self._test(test_sets, feed_builder)
+    def test(self, test_sets, feed_builder, batched=True):
+        self._test(test_sets, batched, feed_builder)
 
-    def _test(self, test_sets, feed_builder, tensorb_index=None):
+    def _test(self, test_sets, batched, feed_builder, epoch=None):
         # Make sure batch iterators are reset
         list(map(lambda x: x.repeat(), test_sets))
 
@@ -99,34 +100,46 @@ class Trainer(object):
         losses_accs = {x.type: {} for x in test_sets}
 
         # For each set
-        for tset in test_sets:
+        for i,tset in enumerate(test_sets):
 
             # Current loss and accuracy support arrays
-            losses = []
-            acc = []
+            set_losses = {k: [] for k in range(len(self.eval_losses.values()))}
+            set_accs = []
 
             # Load initial Batch
-            batch = tset.get_all_data()
-
-            feed = feed_builder(epoch, batch, False)
+            batch = tset.next_batch() if batched else tset.get_all_data()
 
             # Tensors to evaluate
             tensors = list(self.eval_losses.values()) + [self.accuracy]
 
             # Tensorboard Summaries
-            if self.tensorboard_status and tensorb_index != None and !(tset.type == enums.SetType.TRAIN && tset.domain_type == enums.DomainType.SOURCE):
+            if self.tensorboard_status and epoch != None and not (tset.type == enums.SetType.TRAIN and tset.domain_type == enums.DomainType.SOURCE):
                 tensors.append(self.summaries)
 
             # Graph execution
-            res = self._execute(tensors, feed, training=False)
-            losses = res[:-2]
-            acc = res[-2]
+            while batch is not None:
+                feed = feed_builder(epoch if epoch != None else 0, batch, False)
+                res = self.session.run(tensors, feed)
 
-            if self.tensorboard_status and tensorb_index != None and !(tset.type == enums.SetType.TRAIN && tset.domain_type == enums.DomainType.SOURCE):
-                self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], tensorb_index)
+                acc_idx = -1
+                if self.tensorboard_status and epoch != None and not (tset.type == enums.SetType.TRAIN and tset.domain_type == enums.DomainType.SOURCE):
+                    self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], self._last_tensorb_index[i])
+                    self._last_tensorb_index[i] += 1
+                    acc_idx = -2
+
+                for i,v in enumerate(res[:acc_idx]):
+                    set_losses[i].append(v)
+                set_accs.append(res[acc_idx])
+
+                # Load new Batch
+                batch = tset.next_batch() if batched else None
+
+            # Compute mean
+            set_losses = [np.mean(np.array(x)) for x in set_losses.values()]
+            set_accs = np.mean(np.array(set_accs))
 
             # Save Results
-            losses_accs[tset.type][tset.domain_type] = (*losses, acc)
+            losses_accs[tset.type][tset.domain_type] = (*set_losses, set_accs)
 
         # Printing results
         if epoch is not None:
@@ -136,9 +149,9 @@ class Trainer(object):
         return losses_accs
 
     def _setup_tensorboard(self):
-        self.tboard_writers = {x.name:{y.name:tf.summary.FileWriter(self._tensorboard_path + x.name+'-'+y.name, self.session.graph)
-                                       for y in enums.DomainType}
-                               for x in enums.SetType}
+        self._tboard_writers = {x: {y:tf.summary.FileWriter(self._tensorboard_path +'/'+ x.name+'-'+y.name, self.session.graph)
+                                    for y in enums.DomainType}
+                                for x in enums.SetType}
 
         self.summaries = tf.summary.merge_all()
 
@@ -155,19 +168,6 @@ class Trainer(object):
                 doStop = True
 
         return doStop
-
-    def _execute(self, tensors, feed, training, step=None):
-
-        if training and step is not None:
-            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-            run_metadata = tf.RunMetadata()
-            res = self.session.run(tensors, feed_dict=feed, options=run_options, run_metadata=run_metadata)
-            if self.tensorboard_status:
-                self._tboard_writers[enums.SetType.TRAIN][enums.SetType.SOURCE].add_run_metadata(run_metadata, 'step-%d' % step)
-        else:
-            res = self.session.run(tensors, feed)
-
-        return res
 
     def _pretty_print(self, losses_accs):
         for key in losses_accs.keys():
