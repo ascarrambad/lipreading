@@ -14,13 +14,13 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet')
+ex = sacred.Experiment('GRID_MCNet_FC_SOBEL')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1_s2'
+    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -32,7 +32,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*SOBEL_*DIFF_*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
+    DynSpec = '*SOBEL!1_*DIFF_*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
     #
     CntSpec = '*FLATFEAT!3_FC64t_FC128t_FC256t'
     #

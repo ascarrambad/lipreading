@@ -14,13 +14,13 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_Adversarial')
+ex = sacred.Experiment('GRID_Adversarial_FC')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3_s4-s5-s6_s7-s8-s9'
+    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9_s10'
     (SourceSpeakers,TargetSpeakers,ExtraSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -36,6 +36,7 @@ def cfg():
     WrdSpec = 'FC128t'
     SpkSpec = '*GRADFLIP_*DP_FC128t'
     #
+
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -98,8 +99,8 @@ def main(
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    WrdSpec += '_FC{0}i'.format(enc.word_classes_count())
-    SpkSpec += '_FC{0}i'.format(enc.speaker_classes_count())
+    WrdSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
+    SpkSpec += '_FC{0}i_*PREDICT!sce'.format(enc.speaker_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -113,8 +114,8 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification('WRD', WrdSpec, 'FEX-ADVSPLIT-9/Output', 'WordTrgs')
     builder.add_specification('FEX', FexSpec, 'Frames', None)
+    builder.add_main_specification('WRD', WrdSpec, 'FEX-ADVSPLIT-9/Output', 'WordTrgs')
     builder.add_specification('SPK', SpkSpec, 'FEX-ADVSPLIT-9/Input', 'DomainTrgs')
     builder.build_model(build_order=['FEX','WRD','SPK'])
 
@@ -160,6 +161,10 @@ def main(
                   stopping_type=stopping_type,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
+
+    trainer.test(test_sets=[test_source_set, test_target_set, test_extra_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 
 

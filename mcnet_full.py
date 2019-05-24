@@ -14,7 +14,7 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet_CONV_SOBEL')
+ex = sacred.Experiment('GRID_MCNet')
 
 @ex.config
 def cfg():
@@ -31,24 +31,15 @@ def cfg():
     ### TRAINING DATA
     Shuffle = 1
 
-    ### NET SPECS
-    # DynSpec = '*SOBEL!1_*DIFF_*FLATFEAT!2-1_CONV64r!5-1_*MP!2-2_CONV128r!5-1_*MP!2-2_CONV256r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!256-3_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV64r!3-1_CONV64r!3-1_*MP!2-2_CONV128r!3-1_CONV128r!3-1_*MP!2-2_CONV256r!3-1_CONV256r!3-1_CONV256r!3-1_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV256r!3-1_CONV128r!3-1_CONV256r!3-1_*FLATFEAT!3_FC256r'
-
-    # DynSpec = '*SOBEL!1_*DIFF_*FLATFEAT!2-1_CONV32r!5-1_*MP!2-2_CONV64r!5-1_*MP!2-2_CONV128r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!128-3_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV32r!3-1_CONV32r!3-1_*MP!2-2_CONV64r!3-1_CONV64r!3-1_*MP!2-2_CONV128r!3-1_CONV128r!3-1_CONV128r!3-1_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV128r!3-1_CONV64r!3-1_CONV128r!3-1_*FLATFEAT!3_FC128r'
-
-    DynSpec = '*SOBEL!-1-1_*DIFF_*FLATFEAT!2-1_CONV16r!5-1_*MP!2-2_CONV32r!5-1_*MP!2-2_CONV64r!7-1_*MP!2-2_*ORESHAPE_*CONVLSTM!64-3_*MASKSEQ'
     #
-    CntSpec = 'CONV16r!3-1_CONV16r!3-1_*MP!2-2_CONV32r!3-1_CONV32r!3-1_*MP!2-2_CONV64r!3-1_CONV64r!3-1_CONV64r!3-1_*MP!2-2'
+    DynSpec = '*DIFF_*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-7_*MASKSEQ'
     #
-    TrgSpec = '*CONCAT!3_CONV64r!3-1_CONV32r!3-1_CONV64r!3-1_*FLATFEAT!3_FC64r'
+    CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
+    #
+    EncSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3'
+    #
+    DecSpec = '*UNP!2_DECONV64r!3_DECONV64r!3_DECONV32r!3_*UNP!2_DECONV32r!3_DECONV16r!3_*UNP!2_DECONV16r!3_DECONV1t!3_*FLATFEAT!3_*PREDICT!mse'
+    #
 
     ObservedGrads = '' #separate by _
 
@@ -60,7 +51,7 @@ def cfg():
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MCNet.SBL.VALID'
+    OutDir = 'Outdir/MCNet.FULL.VALID'
     TensorboardDir = OutDir + '/tensorboard'
 
 ################################################################################
@@ -74,7 +65,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, TrgSpec,
+        DynSpec, CntSpec, EncSpec, DecSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
@@ -108,7 +99,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
+    # DecSpec += '_FC{0}i'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -117,15 +108,16 @@ def main(
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
+    builder.add_placeholder(train_source_set.data_dtype, (None,) + (np.prod(feature_size),), 'FrameTrgs')
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
     builder.add_specification('DYN', DynSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-11/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+    builder.add_specification('ENC', EncSpec, ['DYN-MASKSEQ-10/Output', 'CNT-MP-9/Output'], None)
+    builder.add_main_specification('DEC', DecSpec, 'ENC-CONV-3/Output', 'FrameTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','EDC'])
+    builder.build_model(build_order=['DYN','CNT','ENC','DEC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
@@ -144,9 +136,9 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths-1,
-                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
-                  batch.data_targets,
+                  batch.data_lengths-2,
+                  batch.data[np.arange(len(batch.data)),batch.data_lengths-2],
+                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1].reshape((BatchSize,-1)),
                   training]
 
         return dict(zip(keys, values))

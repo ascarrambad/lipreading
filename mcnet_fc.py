@@ -14,13 +14,13 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet')
+ex = sacred.Experiment('GRID_MCNet_FC')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3_s4-s5-s6'
+    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -96,7 +96,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
+    TrgSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -150,6 +150,8 @@ def main(
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 

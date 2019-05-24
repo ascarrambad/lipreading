@@ -14,13 +14,13 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet')
+ex = sacred.Experiment('GRID_MCNet_CONV')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3_s4-s5-s6'
+    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -31,25 +31,13 @@ def cfg():
     ### TRAINING DATA
     Shuffle = 1
 
-    ### NET SPECS
-    # DynSpec = '*DIFF_*FLATFEAT!2-1_CONV64r!5_*MP!2-2_CONV128r!5_*MP!2-2_CONV256r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!256-7_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_*MP!2-2_CONV256r!3_CONV256r!3_CONV256r!3_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV256r!3_CONV128r!3_CONV256r!3_*FLATFEAT!3_FC256r'
-
-    # DynSpec = '*DIFF_*FLATFEAT!2_CONV32r!5_*MP!2-2_CONV64r!5_*MP!2-2_CONV128r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!128-7_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_CONV128r!3_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV128r!3_CONV64r!3_CONV128r!3_*FLATFEAT!3_FC128r'
-
     DynSpec = '*DIFF_*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-7_*MASKSEQ'
     #
     CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
     #
     TrgSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3_*FLATFEAT!3_FC64r'
     #
+
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -108,7 +96,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    TrgSpec += '_FC{0}i'.format(enc.word_classes_count())
+    TrgSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)

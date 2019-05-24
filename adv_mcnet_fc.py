@@ -14,13 +14,13 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet')
+ex = sacred.Experiment('GRID_ADV_MCNet_FC')
 
 @ex.config
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3_s4-s5-s6_s7-s8-s9'
+    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9_s10'
     (SourceSpeakers,TargetSpeakers,ExtraSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
 
@@ -36,12 +36,13 @@ def cfg():
     #
     CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
-    SplSpec = '*CONCAT!1_*ADVSPLIT'
+    SplSpec = '*CONCAT!1_FC256t_FC128t_FC256t_*ADVSPLIT'
     #
-    WrdSpec = 'FC256t_FC128t_FC256t'
+    WrdSpec = 'FC256t'
     #
-    SpkSpec = '*GRADFLIP_FC128t'
+    SpkSpec = '*GRADFLIP_FC256t'
     #
+
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
@@ -104,8 +105,8 @@ def main(
     test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
 
     # Adding classification layers
-    WrdSpec += '_FC{0}i'.format(enc.word_classes_count())
-    SpkSpec += '_FC{0}i'.format(enc.speaker_classes_count())
+    WrdSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
+    SpkSpec += '_FC{0}i_*PREDICT!sce'.format(enc.speaker_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -123,8 +124,8 @@ def main(
     builder.add_specification('DYN', DynSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
     builder.add_specification('SPL', SplSpec, ['DYN-MASKSEQ-8/Output', 'CNT-FC-3/Output'], None)
-    builder.add_main_specification('WRD', WrdSpec, 'SPL-ADVSPLIT-1/Output', 'WordTrgs')
-    builder.add_specification('SPK', SpkSpec, 'SPL-ADVSPLIT-1/Input', 'DomainTrgs')
+    builder.add_main_specification('WRD', WrdSpec, 'SPL-ADVSPLIT-4/Output', 'WordTrgs')
+    builder.add_specification('SPK', SpkSpec, 'SPL-ADVSPLIT-4/Input', 'DomainTrgs')
 
     builder.build_model(build_order=['DYN', 'CNT', 'SPL', 'WRD', 'SPK'])
 
@@ -172,6 +173,8 @@ def main(
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set, test_extra_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 
