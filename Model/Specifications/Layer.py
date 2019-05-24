@@ -30,7 +30,7 @@ class Layer(object):
 
         self.tensors = []
 
-    def build(self, in_tensor, init_std):
+    def build(self, in_tensor, init_std, trg_tensor=None):
         with tf.variable_scope(self.name):
             if type(in_tensor) is list:
                 in_tensor = [tf.identity(t, name='Input-%d'%i) for i,t in enumerate(in_tensor)]
@@ -38,15 +38,20 @@ class Layer(object):
                 in_tensor = tf.identity(in_tensor, name='Input')
             self.tensors.append(in_tensor)
 
+            args = self.args
+            if trg_tensor is not None:
+                args = args + [trg_tensor]
+
             if self.special:
-                curr_tensor = layer_type[self.type](in_tensor, *self.args)
+                curr_tensor = layer_type[self.type](in_tensor, *args)
             else:
                 curr_tensor = in_tensor
                 for l in self.sublayers:
                     num_hidden_units = int(l[:-1])
                     activ_func = l[-1]
 
-                    curr_tensor = layer_type[self.type](curr_tensor, num_hidden_units, init_std, activ_func, *self.args)
-                    self.tensors.append(curr_tensor)
+                    curr_tensor = layer_type[self.type](curr_tensor, num_hidden_units, init_std, activ_func, *args)
+
+            self.tensors.append(curr_tensor)
 
         return curr_tensor
