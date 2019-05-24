@@ -35,17 +35,20 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, dep
     filters = _weight_variable([kernel,kernel,in_channels,out_channels], init_std, name='Filters')
 
     if depthwise:
-        out_tensor = tf.nn.depthwise_conv2d(input=in_tensor,
-                                            filter=filters,
-                                            strides=[1,stride,stride,1],
-                                            padding='SAME',
-                                            name='DepthwiseConvolution')
+        conv = tf.nn.depthwise_conv2d(input=in_tensor,
+                                      filter=filters,
+                                      strides=[1,stride,stride,1],
+                                      padding='SAME',
+                                      name='DepthwiseConvolution')
     else:
-        out_tensor = tf.nn.conv2d(input=in_tensor,
-                                  filter=filters,
-                                  strides=[1,stride,stride,1],
-                                  padding='SAME',
-                                  name='Convolution')
+        conv = tf.nn.conv2d(input=in_tensor,
+                            filter=filters,
+                            strides=[1,stride,stride,1],
+                            padding='SAME',
+                            name='Convolution')
+
+    biases = _weight_variable([out_channels], init_std, name='Biases')
+    out_tensor = tf.nn.bias_add(conv, biases, data_format='NHWC')
 
     out_tensor = _add_activation_func(out_tensor, activ_func)
 
@@ -53,7 +56,7 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, dep
 
 # CONVTD(Conv)12r!2-2
 # in_tensor = [batch_size, height, width, channels]
-def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride=1):
+def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, kdepth, sdepth, stride=1):
 
     kernel = int(kernel)
     stride = int(stride)
@@ -61,13 +64,40 @@ def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride
 
     in_channels = in_tensor.shape.as_list()[-1]
 
-    filters = _weight_variable([depth,kernel,kernel,in_channels,out_channels], init_std, name='Filters')
+    filters = _weight_variable([kdepth,kernel,kernel,in_channels,out_channels], init_std, name='Filters')
 
-    out_tensor = tf.nn.conv3d(input=in_tensor,
-                              filter=filters,
-                              strides=[1,stride,stride,stride,1],
-                              padding='SAME',
-                              name='Convolution')
+    conv = tf.nn.conv3d(input=in_tensor,
+                        filter=filters,
+                        strides=[1,sdepth,stride,stride,1],
+                        padding='SAME',
+                        name='Convolution')
+
+    biases = _weight_variable([out_channels], init_std, name='Biases')
+    out_tensor = tf.nn.bias_add(conv, biases, data_format='NHWC')
+
+    out_tensor = _add_activation_func(out_tensor, activ_func)
+
+    return out_tensor
+
+def _deconv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1):
+
+    kernel = int(kernel)
+    stride = int(stride)
+
+    in_shape = in_tensor.shape.as_list()
+    in_channels = in_shape[-1]
+    filters = _weight_variable([kernel,kernel,out_channels,in_channels], init_std, name='Filters')
+
+    out_shape = tf.concat([[tf.shape(in_tensor)[0]], in_shape[1:-1]+[out_channels]], axis=0, name='OutShape')
+
+    deconv = tf.nn.conv2d_transpose(value=in_tensor,
+                                    filter=filters,
+                                    output_shape=out_shape,
+                                    strides=[1,stride,stride,1],
+                                    name='Deconvolution')
+
+    biases = _weight_variable([out_channels], init_std, name='Biases')
+    out_tensor = tf.nn.bias_add(deconv, biases, data_format='NHWC')
 
     out_tensor = _add_activation_func(out_tensor, activ_func)
 
@@ -76,6 +106,27 @@ def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, depth, stride
 ################################################################################
 ############################### SPECIAL LAYERS #################################
 ################################################################################
+
+# *PREDICT!mse
+def _predict(in_tensor, error, trg_tensor):
+
+    if error == 'sce':
+        loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,
+                                                          logits=in_tensor,
+                                                          name='SoftmaxCrossEntropy')
+        hits = tf.equal(tf.argmax(in_tensor, axis=1), tf.argmax(trg_tensor, axis=1), name='Hits')
+    elif error == 'mse':
+        loss = tf.square(in_tensor - trg_tensor, name='MeanSquaredError')
+        hits = tf.equal(in_tensor, trg_tensor, name='Hits')
+
+    loss = tf.reduce_mean(loss, name='MeanLoss')
+
+    accuracy = tf.reduce_mean(tf.cast(hits, tf.float32), name='Accuracy')
+
+    tf.summary.scalar('Loss', loss)
+    tf.summary.scalar('Accuracy', accuracy)
+
+    return loss, hits, accuracy
 
 # *LSTM!64.64-0
 def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
@@ -101,7 +152,7 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, 
     return tf.identity(out_tensor, name='Output')
 
 # *ConvLSTM!2-12
-def _convlstm(in_tensor, out_channels, kernel, conv_ndims=2, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
+def _convlstm(in_tensor, out_channels, kernel, out_hidden_state=False, conv_ndims=2, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
 
     kernel = int(kernel)
     out_channels = int(out_channels)
@@ -241,6 +292,7 @@ def _max_pool2d(in_tensor, kernel, stride):
                           padding='SAME',
                           name='Output')
 
+# *MPTD!2-2
 def _max_pool3d(in_tensor, kernel, stride):
 
     kernel = int(kernel)
@@ -252,6 +304,18 @@ def _max_pool3d(in_tensor, kernel, stride):
                             padding='SAME',
                             name='Output')
 
+def _unpooling(in_tensor, multiplier):
+
+    multiplier = int(multiplier)
+
+    in_shape = in_tensor.shape.as_list()
+    out_size = [x*multiplier for x in  in_shape[1:3]]
+    out_size = tf.identity(out_size, name='OutSize')
+
+    return tf.image.resize_bilinear(images=in_tensor,
+                                    size=out_size,
+                                    name='Output')
+
 # *CONCAT!last
 def _concatenate(in_tensors, axis):
 
@@ -260,9 +324,10 @@ def _concatenate(in_tensors, axis):
     return tf.concat(in_tensors, axis=axis, name='Output')
 
 # SOBEL
-def _sobel_edges(in_tensor, keep_channel=False):
+def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
 
-    keep_channel = reversed_ = bool(int(keep_channel))
+    keep_channel = bool(int(keep_channel))
+    arctan_or_norm = int(arctan_or_norm)
 
     new_shape = tf.concat([[-1], tf.shape(in_tensor)[2:]], axis=0, name='SobelShape')
     reshaped = tf.reshape(tensor=in_tensor, shape=new_shape, name='SobelReshaped')
@@ -271,7 +336,11 @@ def _sobel_edges(in_tensor, keep_channel=False):
     reshaped = tf.reshape(tensor=edge_maps, shape=[-1, 2], name='ArcTanReshaped')
 
     dy, dx = tf.unstack(reshaped, axis=-1)
-    gradient_maps = tf.atan2(dy, dx, name='SobelGradientEdgeMaps')
+
+    if arctan_or_norm == 0:
+        gradient_maps = tf.atan2(dy, dx, name='SobelGradientEdgeMaps')
+    else:
+        gradient_maps = tf.sqrt(tf.square(dy) + tf.square(dx), name='SobelNormEdgeMaps')
 
     if keep_channel:
         out_tensor = tf.reshape(tensor=gradient_maps, shape=tf.shape(in_tensor), name='Output')
@@ -301,6 +370,9 @@ layer_type = {
     'FC': _fullyconnected,
     'CONV': _conv2d,
     'CONVTD': _conv3d,
+    'DECONV': _deconv2d,
+    ## SPECIAL LAYERS ##
+    'PREDICT': _predict,
     'LSTM': _lstm,
     'CONVLSTM': _convlstm,
     'MASKSEQ': _mask_seq,
@@ -311,6 +383,7 @@ layer_type = {
     'DP': _dropout,
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
+    'UNP': _unpooling,
     'CONCAT': _concatenate,
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
