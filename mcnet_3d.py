@@ -32,36 +32,27 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    # DynSpec = 'CONVTD64r!5-2_*MPTD!2-2_CONVTD128r!5-2_*MPTD!2-2_CONVTD256r!7-2_*MPTD!2-2_*CONVLSTM!256-7_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_*MP!2-2_CONV256r!3_CONV256r!3_CONV256r!3_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV256r!3-1_CONV128r!3-1_CONV256r!3-1_*FLATFEAT!3_FC256r'
-
-    # DynSpec = 'CONVTD32r!5-2_*MPTD!2-2_CONVTD64r!5-2_*MPTD!2-2_CONVTD128r!7-2_*MPTD!2-2_*CONVLSTM!128-7_*MASKSEQ'
-    # #
-    # CntSpec = 'CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_*MP!2-2_CONV128r!3_CONV128r!3_CONV128r!3_*MP!2-2'
-    # #
-    # TrgSpec = '*CONCAT!3_CONV128r!3_CONV64r!3_CONV128r!3_*FLATFEAT!3_FC128r'
-
-    DynSpec = 'CONVTD16r!5-2_*MPTD!2-2_CONVTD32r!5-2_*MPTD!2-2_CONVTD64r!7-2_*MPTD!2-2_*CONVLSTM!64-7_*MASKSEQ'
+    DynSpec = 'CONVTD16r!5-3_*MPTD!2-2_CONVTD32r!5-3_*MPTD!2-2_CONVTD64r!7-5_*MPTD!2-2_*CONVLSTM!64-7_*MASKSEQ'
     #
     CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3-1_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
     #
-    TrgSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3_*FLATFEAT!3_FC64r'
+    TrgSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3_*FLATFEAT!3_FC256t_FC128t'
     #
+
     ObservedGrads = '' #separate by _
 
     # NET TRAINING
     MaxEpochs = 100
     BatchSize = 64
-    LearnRate = 0.001
+    LearnRate = 0.0003
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
+    EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/MCNet.3D.VALID'
     TensorboardDir = OutDir + '/tensorboard'
+    ModelDir = OutDir + '/model'
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -76,9 +67,9 @@ def main(
         # NN settings
         DynSpec, CntSpec, TrgSpec,
         # Training settings
-        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
+        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, TensorboardDir, _config
+        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
         ):
     print('Config directory is:',_config)
 
@@ -89,14 +80,19 @@ def main(
     except OSError as e:
         print('Error %s when making output dir - ignoring' % str(e))
 
+    if TensorboardDir is not None:
+        TensorboardDir = TensorboardDir + '%d' % _config['seed']
+    if ModelDir is not None:
+        ModelDir = ModelDir + '%d' % _config['seed']
+
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
                             (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
@@ -153,15 +149,20 @@ def main(
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir)
+    stopping_value = Model.StoppingValue[EarlyStoppingValue]
+
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
+                  stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 

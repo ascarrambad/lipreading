@@ -33,7 +33,9 @@ def cfg():
 
     ### NET SPECS
     FexSpec = '*FLATFEAT!2-1_CONV32r!5_*MP!2-2_CONV48r!5_*MP!2-2_*ORESHAPE_*CONVLSTM!64-5_*MASKSEQ_*FLATFEAT!3_*ADVSPLIT'
+    #
     WrdSpec = 'FC100r_FC100r'
+    #
     SpkSpec = '*GRADFLIP_*DP_FC100r'
     #
 
@@ -45,10 +47,12 @@ def cfg():
     LearnRate = 0.001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
+    EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/ADV.VALID'
     TensorboardDir = OutDir + '/tensorboard'
+    ModelDir = OutDir + '/model'
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -63,9 +67,9 @@ def main(
         # NN settings
         FexSpec, WrdSpec, SpkSpec,
         # Training settings
-        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
+        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, TensorboardDir, _config
+        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
         ):
     print('Config directory is:',_config)
 
@@ -76,15 +80,20 @@ def main(
     except OSError as e:
         print('Error %s when making output dir - ignoring' % str(e))
 
+    if TensorboardDir is not None:
+        TensorboardDir = TensorboardDir + '%d' % _config['seed']
+    if ModelDir is not None:
+        ModelDir = ModelDir + '%d' % _config['seed']
+
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
                             (Data.DomainType.TARGET, TargetSpeakers),
                             (Data.DomainType.EXTRA, ExtraSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
@@ -153,15 +162,20 @@ def main(
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, jloss, losses, TensorboardDir)
+    stopping_value = Model.StoppingValue[EarlyStoppingValue]
+
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, jloss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
+                  stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set, test_extra_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 

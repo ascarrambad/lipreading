@@ -55,6 +55,7 @@ def cfg():
 
     OutDir = 'Outdir/ADV.MCNet.FC.VALID'
     TensorboardDir = OutDir + '/tensorboard'
+    ModelDir = OutDir + '/model'
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -71,7 +72,7 @@ def main(
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, TensorboardDir, _config
+        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
         ):
     print('Config directory is:',_config)
 
@@ -81,6 +82,11 @@ def main(
         os.makedirs(OutDir)
     except OSError as e:
         print('Error %s when making output dir - ignoring' % str(e))
+
+    if TensorboardDir is not None:
+        TensorboardDir = TensorboardDir + '%d' % _config['seed']
+    if ModelDir is not None:
+        ModelDir = ModelDir + '%d' % _config['seed']
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
@@ -164,7 +170,7 @@ def main(
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir)
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set, train_target_set],
                   valid_sets=[valid_source_set, valid_target_set, valid_extra_set],

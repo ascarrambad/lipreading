@@ -31,7 +31,8 @@ def cfg():
     ### TRAINING DATA
     Shuffle = 1
 
-    DynSpec = '*DIFF_*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-7_*MASKSEQ'
+    ### NET SPECS
+    DynSpec = '*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-7_*MASKSEQ'
     #
     CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
     #
@@ -43,13 +44,15 @@ def cfg():
     # NET TRAINING
     MaxEpochs = 100
     BatchSize = 64
-    LearnRate = 0.001
+    LearnRate = 0.0003
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
+    EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/MCNet.VALID'
     TensorboardDir = OutDir + '/tensorboard'
+    ModelDir = OutDir + '/model'
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -64,9 +67,9 @@ def main(
         # NN settings
         DynSpec, CntSpec, TrgSpec,
         # Training settings
-        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
+        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, TensorboardDir, _config
+        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
         ):
     print('Config directory is:',_config)
 
@@ -77,14 +80,19 @@ def main(
     except OSError as e:
         print('Error %s when making output dir - ignoring' % str(e))
 
+    if TensorboardDir is not None:
+        TensorboardDir = TensorboardDir + '%d' % _config['seed']
+    if ModelDir is not None:
+        ModelDir = ModelDir + '%d' % _config['seed']
+
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
                             (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
@@ -111,7 +119,7 @@ def main(
     # Create network
     builder.add_specification('DYN', DynSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-10/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-9/Output', 'CNT-MP-9/Output'], 'WordTrgs')
 
     builder.build_model(build_order=['DYN','CNT','EDC'])
 
@@ -132,8 +140,8 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths-1,
-                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
+                  batch.data_lengths,
+                  batch.data_opt,
                   batch.data_targets,
                   training]
 
@@ -141,15 +149,20 @@ def main(
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir)
+    stopping_value = Model.StoppingValue[EarlyStoppingValue]
+
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
+                  stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 
