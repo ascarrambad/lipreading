@@ -83,7 +83,7 @@ class Set(object):
 
     def _get_data(self, start_idx, end_idx):
         # Support arrays setup
-        batch_dict = {key: [] for key in ['data', 'data_lengths', 'data_targets', 'domain_targets']}
+        batch_dict = {key: [] for key in ['data', 'data_opt', 'data_lengths', 'data_targets', 'domain_targets']}
 
         # Data retrieval
         for i in range(start_idx, end_idx):
@@ -92,6 +92,7 @@ class Set(object):
             item = self._get_from_bin(idx)
 
             batch_dict['data'].append(item.data)
+            batch_dict['data_opt'].append(item.data_opt)
             batch_dict['data_lengths'].append(item.data_length)
             batch_dict['data_targets'].append(item.data_target)
             batch_dict['domain_targets'].append(item.domain_target)

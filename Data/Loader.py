@@ -28,7 +28,7 @@ class Loader(object):
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
-    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, add_channel=False, verbose=False):
+    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, diff_frames=False, add_channel=False, verbose=False):
 
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != enums.DomainType.ALL]
         if dbtype == enums.SetType.TRAIN:
@@ -44,7 +44,7 @@ class Loader(object):
             seq_proc = funcs.sequence_processor(means, stds, add_channel)
 
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, verbose=verbose)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose=verbose)
             domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
@@ -100,7 +100,7 @@ class Loader(object):
 
         return (means, stds)
 
-    def _load_and_bin(self, seq_data, speakers, sequence_processor, verbose, labelResamplingFactor=1):
+    def _load_and_bin(self, seq_data, speakers, sequence_processor, diff_frames, verbose, labelResamplingFactor=1):
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
@@ -117,7 +117,7 @@ class Loader(object):
         feature_size = None
 
         for seqKey in seq_data.keys():
-            # step 1: process sequence
+            # Process sequence
             (speaker, name) = seqKey.split(':')
             try:
                 seq_pair = videoData[speaker][name]
@@ -129,15 +129,21 @@ class Loader(object):
                 sequence = None
                 illegal_frames = list(range(consts.TOTAL_MAX_FRAME))
 
+            if sequence is None:
+                if verbose:
+                    print('Ignoring %s: broken sequence %s' % (word_frames, seqKey))
+                continue
+
             words_frames = seq_data[seqKey] # [(word, fromFrame, toFrame)]
 
-            # iterate over words and fill return objects
-            for word_frames in words_frames:
-                if sequence is None:
-                    if verbose:
-                        print('Ignoring %s: broken sequence %s' % (word_frames, seqKey))
-                    continue
+            # Optionally computes the difference between frames
+            if diff_frames:
+                prev = sequence[:-1]
+                next_ = sequence[1:]
+                diff_sequence = next_ - prev
 
+            # Iterate over words and fill return objects
+            for word_frames in words_frames:
                 (word, fromFrame, toFrame) = word_frames
                 fromFrame = fromFrame * labelResamplingFactor
                 toFrame = toFrame * labelResamplingFactor
@@ -154,15 +160,18 @@ class Loader(object):
                         print('SKIPPING VIDEO word %s in %s due to illegal frames' % (word, seqKey))
                     continue
 
-                # finally collect data item!
-                # key = seqKey + ':' + word
-
-                data = sequence[fromFrame:fromFrame + seq_length]
+                # Collect data item [key = seqKey + ':' + word]
+                if diff_frames:
+                    data = diff_sequence[fromFrame:fromFrame + seq_length]
+                else:
+                    data = sequence[fromFrame:fromFrame + seq_length]
+                data_opt = sequence[fromFrame + seq_length - 1] if diff_frames else None
                 data_length = np.array(seq_length)
                 data_target = encoding.word_one_hot(word)
                 domain_target = encoding.speaker_one_hot(speaker)
 
                 item = Item(data=data,
+                            data_opt=data_opt,
                             data_length=data_length,
                             data_target=data_target,
                             domain_target=domain_target)
