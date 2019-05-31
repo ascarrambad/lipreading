@@ -22,12 +22,12 @@ elif 'AVSRHOST' in os.environ and os.environ['AVSRHOST'] == 'CLUS':
     WORDLISTFILE = LISTPATH + '/WordList.txt'
     DATADIR = '/scratch/snx3000/mwand/projects/Audiovisual/GRID/Corpus/%(spk)s'
 else:
-    LISTPATH = '/home/mwand/projects/AudioVisual/GRID/FullDatabaseAllSpeakers'
-    STATSDIR = '/home/mwand/projects/AudioVisual/GRID/Stats'
-    DICTIONARYFILE = '/home/mwand/projects/AudioVisual/GRID/FullDatabaseAllSpeakers/Dictionary.txt'
-    PHONELISTFILE = '/home/mwand/projects/AudioVisual/GRID/FullDatabaseAllSpeakers/PhoneList.txt'
-    WORDLISTFILE = '/home/mwand/projects/AudioVisual/GRID/FullDatabaseAllSpeakers/WordList.txt'
-    DATADIR = '/home/mwand/projects/AudioVisual/GRID/Corpus/%(spk)s'
+    LISTPATH = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers'
+    STATSDIR = '/home/mwand/projects/AudioVisual/GRID-old/Stats'
+    DICTIONARYFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/Dictionary.txt'
+    PHONELISTFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/PhoneList.txt'
+    WORDLISTFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/WordList.txt'
+    DATADIR = '/home/mwand/projects/AudioVisual/GRID-old/Corpus/%(spk)s'
 
 TRAIN_PATH = LISTPATH + '/train_sd_cop_shuffled.txt'
 VALID_PATH = LISTPATH + '/dev_sd_cop.txt'
