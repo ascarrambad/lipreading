@@ -87,7 +87,7 @@ def main(
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
-                            (Data.DomainType.TARGET, TargetSpeakers))
+                              (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
