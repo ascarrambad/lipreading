@@ -6,7 +6,7 @@ from .Helpers import enums
 
 class Trainer(object):
 
-    def __init__(self, epochs, optimizer, accuracy, loss, eval_losses, tensorboard_path=None):
+    def __init__(self, epochs, optimizer, accuracy, loss, eval_losses, tensorboard_path=None, model_path=None):
         super(Trainer, self).__init__()
 
         assert tensorboard_path != ''
@@ -22,6 +22,14 @@ class Trainer(object):
         self.tensorboard_status = False
 
         self.session = None
+        self._training_current_best = None
+
+        self._model_path = model_path
+        self.model_saver_status = model_path is not None
+
+        if self.model_saver_status:
+            self.saver = tf.train.Saver(max_to_keep=1)
+            self.saver.export_meta_graph(model_path + '/graph.meta')
 
     def init_session(self):
         if self.session is not None:
@@ -36,14 +44,14 @@ class Trainer(object):
 
         self.session.run(tf.global_variables_initializer())
 
-    def train(self, train_sets, valid_sets, batched_valid, stopping_type, stopping_patience, feed_builder):
+    def train(self, train_sets, valid_sets, batched_valid, stopping_type, stopping_value, stopping_patience, feed_builder):
         assert self.session is not None
         assert len(train_sets) > 0
 
         valid_sets = train_sets + valid_sets
 
         # Variables init
-        self._training_current_best = (0,0)
+        self._training_current_best = (-1,-9999)
         tensorb_index = 0
         self._last_tensorb_index = [0]*len(valid_sets)
 
@@ -77,19 +85,28 @@ class Trainer(object):
             # Testing
             losses_accs = self._test(valid_sets, batched_valid, feed_builder, epoch)
 
-            # Retrieving accuracies for early stopping evaluation
-            accs = {st: {dt: vv[-1] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
+            if stopping_type is not enums.StoppingType.OFF:
+                # Retrieving losses/accuracies for early stopping evaluation
+                accs = {st: {dt: stopping_value.value[0]*vv[stopping_value.value[1]] for (dt,vv) in v.items()} for (st,v) in losses_accs.items()}
 
-            # Early stopping evaluation
-            if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
-                best_e, best_v = self._training_current_best
+                # Early stopping evaluation
+                if self._evaluate_stopping(epoch, accs, stopping_type, stopping_patience):
+                    best_e, best_v = self._training_current_best
 
-                print('Stopping at [EPOCH {0}] because stop condition has been reached'.format(epoch))
-                print('Condition satisfied at [EPOCH {0}], best result: {1:.5f}'.format(best_e, best_v))
+                    print('Stopping at [EPOCH {0}] because stop condition has been reached'.format(epoch))
+                    print('Condition satisfied at [EPOCH {0}], best result: {1:.5f}'.format(best_e, best_v))
 
-                return
+                    return
 
-    def test(self, test_sets, feed_builder, batched=True):
+    def test(self, test_sets, feed_builder, batched=True, restore_best=True):
+        assert self.session is not None
+        assert len(test_sets) > 0
+
+        if restore_best and self.model_saver_status:
+            self.saver = tf.train.import_meta_graph(self._model_path + '/graph.meta')
+            path = tf.train.latest_checkpoint(self._model_path)
+            self.saver.restore(self.session, path)
+
         self._test(test_sets, batched, feed_builder)
 
     def _test(self, test_sets, batched, feed_builder, epoch=None):
@@ -149,7 +166,7 @@ class Trainer(object):
         return losses_accs
 
     def _setup_tensorboard(self):
-        self._tboard_writers = {x: {y:tf.summary.FileWriter(self._tensorboard_path +'/'+ x.name+'-'+y.name, self.session.graph)
+        self._tboard_writers = {x: {y: tf.summary.FileWriter(self._tensorboard_path +'/'+ x.name+'-'+y.name, self.session.graph)
                                     for y in enums.DomainType}
                                 for x in enums.SetType}
 
@@ -158,14 +175,22 @@ class Trainer(object):
         self.tensorboard_status = True
 
     def _evaluate_stopping(self, epoch, accs, criteria, patience):
-        doStop = False
-        if criteria != enums.StoppingType.OFF:
-            stopValue = accs[criteria.value[0]][criteria.value[1]]
+        assert criteria is not enums.StoppingType.OFF
 
-            if stopValue > self._training_current_best[1]:
-                self._training_current_best = (epoch, stopValue)
-            elif epoch - self._training_current_best[0] > patience:
-                doStop = True
+        doStop = False
+        stopValue = accs[criteria.value[0]][criteria.value[1]]
+
+        if stopValue > self._training_current_best[1]:
+            self._training_current_best = (epoch, stopValue)
+
+            if self.model_saver_status:
+                self.saver.save(sess=self.session,
+                                save_path=self._model_path + '/model',
+                                global_step=epoch,
+                                write_meta_graph=False)
+
+        elif epoch - self._training_current_best[0] > patience:
+            doStop = True
 
         return doStop
 
