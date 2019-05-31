@@ -56,11 +56,12 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, dep
 
 # CONVTD(Conv)12r!2-2
 # in_tensor = [batch_size, height, width, channels]
-def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, kdepth, sdepth, stride=1):
+def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, kdepth, stride=1, sdepth=1):
 
     kernel = int(kernel)
     stride = int(stride)
-    depth = int(depth)
+    kdepth = int(kdepth)
+    sdepth = int(sdepth)
 
     in_channels = in_tensor.shape.as_list()[-1]
 
@@ -349,6 +350,7 @@ def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
 
     return out_tensor
 
+# *DIFF
 def _diff_frames(in_tensor):
     prev = tf.identity(in_tensor[:,:-1], name='PreviousFrames')
     next_ = tf.identity(in_tensor[:, 1:], name='NextFrames')
@@ -356,6 +358,7 @@ def _diff_frames(in_tensor):
 
     return out_tensor
 
+# SCALE
 def _scaler(in_tensor):
     min_ = tf.reduce_min(in_tensor)
     return tf.div(x=tf.subtract(in_tensor, min_),
