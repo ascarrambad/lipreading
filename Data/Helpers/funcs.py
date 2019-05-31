@@ -4,7 +4,7 @@ import numpy as np
 from . import consts
 
 def sequence_processor(means, stds, add_channel):
-    def processingFunction(wordSeq,speaker):
+    def processingFunction(wordSeq, speaker):
         # reshape to remain generic
         origShape = wordSeq.shape
         wordSeq.shape = (wordSeq.shape[0], np.prod(wordSeq.shape[1:]))
