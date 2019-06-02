@@ -59,7 +59,7 @@ class Trainer(object):
         for epoch in range(self.epochs):
             # Load initial batches
             list(map(lambda x: x.repeat(), train_sets))
-            batches = list(map(lambda x: x.next_batch(), train_sets))
+            batches = list(map(lambda x: x.next_batch, train_sets))
 
             # Training
             while None not in batches:
@@ -79,7 +79,7 @@ class Trainer(object):
                     self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], tensorb_index)
 
                 # Load new Batches
-                batches = list(map(lambda x: x.next_batch(), train_sets))
+                batches = list(map(lambda x: x.next_batch, train_sets))
                 tensorb_index += 1
 
             # Testing
@@ -124,7 +124,7 @@ class Trainer(object):
             set_accs = []
 
             # Load initial Batch
-            batch = tset.next_batch() if batched else tset.get_all_data()
+            batch = tset.next_batch if batched else tset.all
 
             # Tensors to evaluate
             tensors = list(self.eval_losses.values()) + [self.accuracy]
@@ -149,7 +149,7 @@ class Trainer(object):
                 set_accs.append(res[acc_idx])
 
                 # Load new Batch
-                batch = tset.next_batch() if batched else None
+                batch = tset.next_batch if batched else None
 
             # Compute mean
             set_losses = [np.mean(np.array(x)) for x in set_losses.values()]
