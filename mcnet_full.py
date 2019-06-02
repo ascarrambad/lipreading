@@ -108,7 +108,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    DecSpec += '_*PREDICT!mse'
+    DecSpec += '_*PREDICT!img'
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -135,10 +135,10 @@ def main(
     optimizer = tf.train.AdamOptimizer(LearnRate)
 
     ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
+    losses = builder.graph_specs[0].loss
 
     ## Losses dictionary
-    lkeys = ['Wrd']
+    lkeys = ['PLoss', 'GdlLoss', 'ImgLoss']
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
@@ -162,7 +162,7 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss[2], losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
