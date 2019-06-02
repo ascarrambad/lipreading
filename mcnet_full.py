@@ -51,7 +51,7 @@ def cfg():
     LearnRate = 0.0003
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
-    EarlyStoppingValue = 'ACCURACY'
+    EarlyStoppingValue = 'LOSS'
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/MCNet.FULL.VALID'
