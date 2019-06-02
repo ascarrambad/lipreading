@@ -215,7 +215,7 @@ def _gradient_reversal(in_tensor, lambda_tensor_name='Inputs/Lambda'):
     return tf.identity(out_tensor, name='Output')
 
 # *FLATFEAT!3
-_orig_shape = None # Shape to be recovered by orig_shape layer
+_orig_shape =[] # Shape to be recovered by orig_shape layer
 def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 
     num_to_flat = int(num_to_flat)
@@ -225,9 +225,8 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
 
     assert len(in_tensor.shape) - num_to_flat >= 1
 
-    if _orig_shape is None:
-        _orig_shape = (reversed_, tf.identity(input=tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:],
-                                              name='RemainingShape'))
+    _orig_shape.append((reversed_, tf.identity(input=tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:],
+                                               name='RemainingShape')))
 
     current_shape = in_tensor.shape.as_list()
     current_shape = [-1 if x is None else x for x in current_shape]
@@ -244,14 +243,14 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
                       name='Output')
 
 # *ORESHAPE
-def _original_reshape(in_tensor):
+def _original_reshape(in_tensor, index=0):
 
+    index = int(index)
     global _orig_shape
-
     assert _orig_shape is not None
 
-    reversed_ = _orig_shape[0]
-    flat_feat = _orig_shape[1]
+    reversed_ = _orig_shape[index][0]
+    flat_feat = _orig_shape[index][1]
 
     if not reversed_:
         new_shape = tf.concat([tf.shape(in_tensor)[:-1], flat_feat], axis=0, name='OrigShape')
@@ -261,8 +260,6 @@ def _original_reshape(in_tensor):
     out_tensor = tf.reshape(tensor=in_tensor,
                             shape=new_shape,
                             name='Output')
-
-    _orig_shape = None
 
     return out_tensor
 
@@ -305,6 +302,7 @@ def _max_pool3d(in_tensor, kernel, stride):
                             padding='SAME',
                             name='Output')
 
+# *UNP!2
 def _unpooling(in_tensor, multiplier):
 
     multiplier = int(multiplier)
@@ -358,12 +356,54 @@ def _diff_frames(in_tensor):
 
     return out_tensor
 
-# SCALE
+# *SCALE
 def _scaler(in_tensor):
     min_ = tf.reduce_min(in_tensor)
     return tf.div(x=tf.subtract(in_tensor, min_),
                   y=tf.subtract(tf.reduce_max(in_tensor), min_),
                   name='Output')
+
+# *RESGEN
+_resids = []
+def _residual_gen(in_tensors, axis):
+
+    axis = int(axis)
+
+    n_layers = len(in_tensors) // 2
+    input_dyn = in_tensors[:n_layers]
+    input_cont = in_tensors[n_layers:]
+
+    for l in range(n_layers):
+        with tf.variable_scope('ORESHAPE%d'%l):
+            input_dyn[l] = _original_reshape(input_dyn[l], index=0)
+        with tf.variable_scope('MASKSEQ%d'%l):
+            input_dyn[l] = _mask_seq(input_dyn[l])
+
+    global _resids
+
+    for l in range(n_layers):
+        input_ = tf.concat([input_dyn[l], input_cont[l]], axis=axis)
+        out_dim = input_cont[l].shape.as_list()[-1]
+
+        with tf.variable_scope('CONV%d_1'%l):
+            res1 = _conv2d(input_, out_dim, 0.1, 'r', 3)
+        with tf.variable_scope('CONV%d_2'%l):
+            res2 = _conv2d(res1, out_dim, 0.1, 'i', 3)
+        _resids.append(res2)
+
+    return _resids
+
+# *RESGET
+def _residual_get(in_tensor, index):
+
+    index = int(index)
+
+    global _resids
+
+    resid = _resids[index]
+    out_tensor = tf.add(in_tensor, resid, name='Output')
+
+    return out_tensor
 
 ################################################################################
 ################################### HELPERS ####################################
@@ -391,6 +431,8 @@ layer_type = {
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
     'SCALE': _scaler,
+    'RESGEN': _residual_gen,
+    'RESGET': _residual_get,
 }
 
 def _add_activation_func(in_tensor, func):
@@ -398,6 +440,8 @@ def _add_activation_func(in_tensor, func):
         out = tf.nn.tanh(in_tensor, name='Output')
     elif func == 'r':
         out = tf.nn.relu(in_tensor, name='Output')
+    elif func == 'lr':
+        out = tf.nn.leaky_relu(in_tensor, name='Output')
     elif func == 's':
         out = tf.nn.sigmoid(in_tensor, name='Output')
     elif func == 'i':
