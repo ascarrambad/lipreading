@@ -116,7 +116,7 @@ def _predict(in_tensor, error, trg_tensor):
                                                           logits=in_tensor,
                                                           name='SoftmaxCrossEntropy')
         hits = tf.equal(tf.argmax(in_tensor, axis=1), tf.argmax(trg_tensor, axis=1), name='Hits')
-    elif error == 'mse':
+    elif error == 'mse' or error == 'img':
         loss = tf.square(in_tensor - trg_tensor, name='MeanSquaredError')
         hits = tf.equal(in_tensor, trg_tensor, name='Hits')
 
@@ -124,11 +124,24 @@ def _predict(in_tensor, error, trg_tensor):
 
     accuracy = tf.reduce_mean(tf.cast(hits, tf.float32), name='Accuracy')
 
-    tf.summary.scalar('Loss', loss)
+    if error == 'img':
+        with tf.variable_scope('ImgLoss'):
+            with tf.variable_scope('GdlLoss'):
+                gdl_loss = _gdl_loss(in_tensor, trg_tensor)
+            img_loss = tf.identity(gdl_loss + loss, name='ImgLoss')
+
+        tf.summary.scalar('PLoss', loss)
+        tf.summary.scalar('GdlLoss', gdl_loss)
+        tf.summary.scalar('ImgLoss', img_loss)
+    else:
+        tf.summary.scalar('Loss', loss)
     tf.summary.scalar('Accuracy', accuracy)
     tf.summary.image('PredFrame',in_tensor)
 
-    return loss, hits, accuracy
+    if error == 'img':
+        return [loss, gdl_loss, img_loss], hits, accuracy
+    else:
+        return loss, hits, accuracy
 
 # *LSTM!64.64-0
 def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
@@ -456,3 +469,34 @@ def _weight_variable(shape, init_std, name, validate_shape=True):
     var = tf.get_variable(initializer=initial, validate_shape=validate_shape, name=name)
     return var
 
+def _gdl_loss(gen_frames, gt_frames, alpha=1.):
+  """
+  Calculates the sum of GDL losses between the predicted and gt frames.
+  @param gen_frames: The predicted frames at each scale.
+  @param gt_frames: The ground truth frames at each scale
+  @param alpha: The power to which each gradient term is raised.
+  @return: The GDL loss.
+  """
+  # create filters [-1, 1] and [[1],[-1]]
+  # for diffing to the left and down respectively.
+  pos = tf.constant(np.identity(1), dtype=tf.float32)
+  neg = -1 * pos
+  # [-1, 1]
+  filter_x = tf.expand_dims(tf.stack([neg, pos]), 0)
+  # [[1],[-1]]
+  filter_y = tf.stack([tf.expand_dims(pos, 0), tf.expand_dims(neg, 0)])
+  strides = [1, 1, 1, 1]  # stride of (1, 1)
+  padding = 'SAME'
+
+  gen_dx = tf.abs(tf.nn.conv2d(gen_frames, filter_x, strides, padding=padding))
+  gen_dy = tf.abs(tf.nn.conv2d(gen_frames, filter_y, strides, padding=padding))
+  gt_dx = tf.abs(tf.nn.conv2d(gt_frames, filter_x, strides, padding=padding))
+  gt_dy = tf.abs(tf.nn.conv2d(gt_frames, filter_y, strides, padding=padding))
+
+  grad_diff_x = tf.abs(gt_dx - gen_dx)
+  grad_diff_y = tf.abs(gt_dy - gen_dy)
+
+  gdl_loss = tf.reduce_mean((grad_diff_x ** alpha + grad_diff_y ** alpha), name='GdlLoss')
+
+  # condense into one tensor and avg
+  return gdl_loss
