@@ -28,6 +28,8 @@ class Layer(object):
         self.sublayers = match.group('sublayers').split('-') if not self.special else []
         self.args = match.group('args').split('-') if match.group('args') is not None else []
 
+        self.extra_tensor = None
+
         self.tensors = []
 
     def build(self, in_tensor, init_std, trg_tensor=None):
@@ -39,6 +41,10 @@ class Layer(object):
             self.tensors.append(in_tensor)
 
             args = self.args
+
+            if self.extra_tensor is not None:
+                args = args + [self.extra_tensor]
+
             if trg_tensor is not None:
                 args = args + [trg_tensor]
 
