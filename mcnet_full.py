@@ -14,7 +14,7 @@ import tensorflow as tf
 
 import sacred
 
-ex = sacred.Experiment('GRID_MCNet')
+ex = sacred.Experiment('GRID_MCNet_FULL')
 
 @ex.config
 def cfg():
@@ -31,14 +31,16 @@ def cfg():
     ### TRAINING DATA
     Shuffle = 1
 
-    #
-    DynSpec = '*DIFF_*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-7_*MASKSEQ'
+    ### NET SPECS
+    DynSpec = '*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE!0_*CONVLSTM!64-3_*MASKSEQ'
     #
     CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
     #
     EncSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3'
     #
-    DecSpec = '*UNP!2_DECONV64r!3_DECONV64r!3_DECONV32r!3_*UNP!2_DECONV32r!3_DECONV16r!3_*UNP!2_DECONV16r!3_DECONV1t!3_*FLATFEAT!3_*PREDICT!mse'
+    ResSpec = '*RESGEN!3'
+    #
+    DecSpec = '*UNP!2_*RESGET!2_DECONV64r!3_DECONV64r!3_DECONV32r!3_*UNP!2_*RESGET!1_DECONV32r!3_DECONV16r!3_*UNP!2_*RESGET!0_DECONV16r!3_DECONV1t!3'
     #
 
     ObservedGrads = '' #separate by _
@@ -46,9 +48,10 @@ def cfg():
     # NET TRAINING
     MaxEpochs = 100
     BatchSize = 64
-    LearnRate = 0.0001
+    LearnRate = 0.0003
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
+    EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/MCNet.FULL.VALID'
@@ -66,9 +69,9 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, EncSpec, DecSpec,
+        DynSpec, CntSpec, EncSpec, ResSpec, DecSpec,
         # Training settings
-        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingPatience,
+        BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
         ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
         ):
@@ -88,12 +91,12 @@ def main(
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
-                            (Data.DomainType.TARGET, TargetSpeakers))
+                              (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
@@ -105,7 +108,7 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
-    # DecSpec += '_FC{0}i'.format(enc.word_classes_count())
+    DecSpec += '_*PREDICT!mse'
 
     # Model Builder
     builder = Model.Builder(InitStd)
@@ -114,16 +117,19 @@ def main(
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
     builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
-    builder.add_placeholder(train_source_set.data_dtype, (None,) + (np.prod(feature_size),), 'FrameTrgs')
+    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'FrameTrgs')
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
     builder.add_specification('DYN', DynSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_specification('ENC', EncSpec, ['DYN-MASKSEQ-10/Output', 'CNT-MP-9/Output'], None)
+    builder.add_specification('ENC', EncSpec, ['DYN-MASKSEQ-9/Output', 'CNT-MP-9/Output'], None)
+    res_inputs = ['DYN-CONV-1/Output', 'DYN-CONV-3/Output','DYN-CONV-5/Output',
+                  'CNT-CONV-1/Output', 'CNT-CONV-4/Output', 'CNT-CONV-8/Output']
+    builder.add_specification('RES', ResSpec, res_inputs, None)
     builder.add_main_specification('DEC', DecSpec, 'ENC-CONV-3/Output', 'FrameTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','ENC','DEC'])
+    builder.build_model(build_order=['DYN','CNT','RES','ENC','DEC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
@@ -140,26 +146,34 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        keys = builder.placeholders.values()
-        values = [batch.data,
-                  batch.data_lengths-2,
-                  batch.data[np.arange(len(batch.data)),batch.data_lengths-2],
-                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1].reshape((BatchSize,-1)),
-                  training]
+        for i in range(1,batch.data.shape[1]-1): # range from diff frame 1 to n-1
+            keys = builder.placeholders.values()
+            seq_lens = np.minimum(batch.data_lengths-2, [i]*64) # -2 because we're interested in the second to last position
 
-        return dict(zip(keys, values))
+            values = [batch.data[:,:i,:,:,:], # all frame diffs until i
+                      seq_lens, # length of the sequences
+                      batch.data_opt[np.arange(BatchSize),seq_lens,:,:,:], # current frame min(lengths-1, i)
+                      batch.data_opt[np.arange(BatchSize),seq_lens+1,:,:,:], # frame after min(lengths-1, i)
+                      training]
+
+            yield dict(zip(keys, values))
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
+    stopping_value = Model.StoppingValue[EarlyStoppingValue]
+
     trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set, valid_target_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
+                  stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-
+    trainer.test(test_sets=[test_source_set, test_target_set],
+                 feed_builder=feed_builder,
+                 batched=True)
 
 
