@@ -73,7 +73,7 @@ class Trainer(object):
                     train_tensors += [self.summaries]
 
                 feeds = feed_builder(epoch, final_batch, True)
-                if !hasattr(feeds, '__iter__'): feeds = [feeds]
+                if not hasattr(feeds, '__iter__'): feeds = [feeds]
                 for f in feeds:
                     results = self.session.run(train_tensors, f)
                     if self.tensorboard_status:
