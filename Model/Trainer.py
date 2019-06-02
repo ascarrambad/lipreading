@@ -72,15 +72,16 @@ class Trainer(object):
                 if self.tensorboard_status:
                     train_tensors += [self.summaries]
 
-                feed = feed_builder(epoch, final_batch, True)
-
-                results = self.session.run(train_tensors, feed)
-                if self.tensorboard_status:
-                    self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], tensorb_index)
+                feeds = feed_builder(epoch, final_batch, True)
+                if !hasattr(feeds, '__iter__'): feeds = [feeds]
+                for f in feeds:
+                    results = self.session.run(train_tensors, f)
+                    if self.tensorboard_status:
+                        self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], tensorb_index)
+                    tensorb_index += 1
 
                 # Load new Batches
                 batches = list(map(lambda x: x.next_batch, train_sets))
-                tensorb_index += 1
 
             # Testing
             losses_accs = self._test(valid_sets, batched_valid, feed_builder, epoch)
@@ -135,18 +136,20 @@ class Trainer(object):
 
             # Graph execution
             while batch is not None:
-                feed = feed_builder(epoch if epoch != None else 0, batch, False)
-                res = self.session.run(tensors, feed)
+                feeds = feed_builder(epoch if epoch != None else 0, batch, False)
+                if !hasattr(feeds, '__iter__'): feeds = [feeds]
+                for f in feeds:
+                    res = self.session.run(tensors, f)
 
-                acc_idx = -1
-                if self.tensorboard_status and epoch != None and not (tset.type == enums.SetType.TRAIN and tset.domain_type == enums.DomainType.SOURCE):
-                    self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], self._last_tensorb_index[i])
-                    self._last_tensorb_index[i] += 1
-                    acc_idx = -2
+                    acc_idx = -1
+                    if self.tensorboard_status and epoch != None and not (tset.type == enums.SetType.TRAIN and tset.domain_type == enums.DomainType.SOURCE):
+                        self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], self._last_tensorb_index[i])
+                        self._last_tensorb_index[i] += 1
+                        acc_idx = -2
 
-                for i,v in enumerate(res[:acc_idx]):
-                    set_losses[i].append(v)
-                set_accs.append(res[acc_idx])
+                    for i,v in enumerate(res[:acc_idx]):
+                        set_losses[i].append(v)
+                    set_accs.append(res[acc_idx])
 
                 # Load new Batch
                 batch = tset.next_batch if batched else None
