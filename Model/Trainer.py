@@ -137,7 +137,7 @@ class Trainer(object):
             # Graph execution
             while batch is not None:
                 feeds = feed_builder(epoch if epoch != None else 0, batch, False)
-                if !hasattr(feeds, '__iter__'): feeds = [feeds]
+                if not hasattr(feeds, '__iter__'): feeds = [feeds]
                 for f in feeds:
                     res = self.session.run(tensors, f)
 
