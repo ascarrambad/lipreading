@@ -5,7 +5,7 @@ from .Batch import Batch
 from ..Helpers import funcs
 
 class Set(object):
-    def __init__(self, domain_data, batch_size, permute=True):
+    def __init__(self, domain_data, batch_size, truncate_remainder=False, permute=True):
         super(Set, self).__init__()
 
         self.type = domain_data.set_type
@@ -17,6 +17,7 @@ class Set(object):
         self._index_to_bin_pos = domain_data.index_to_bin_pos
 
         self._batch_size = batch_size
+        self._truncate_remainder = truncate_remainder
 
         if permute:
             self._permutation = np.random.permutation(len(self._index_to_bin_pos))
@@ -38,9 +39,9 @@ class Set(object):
         self.domain_dtype = self._get_from_bin(0).domain_target.dtype
         self.domain_ndims = len(self.domain_shape)
 
-    def _get_from_bin(self, index):
-        bin_, pos = self._index_to_bin_pos[index]
-        return self._binned_data[bin_][pos]
+    @property
+    def count(self):
+        return len(self._permutation)
 
     def repeat(self, permute=True):
         self._current_index = 0
@@ -48,18 +49,20 @@ class Set(object):
         if permute:
             self._permutation = np.random.permutation(len(self._index_to_bin_pos))
 
-    def get_all_data(self):
+    @property
+    def all(self):
 
         # Prepare start & end indexes
         start_idx = 0
         end_idx = len(self._permutation)
 
         # Retrieving data
-        batch = self._get_data(start_idx, end_idx)
+        batch = self._get_batch(start_idx, end_idx)
 
         return batch
 
-    def next_batch(self, no_remainder=True):
+    @property
+    def next_batch(self):
 
         # Return none if whole database as been read
         if self._current_index >= len(self._permutation):
@@ -72,16 +75,16 @@ class Set(object):
         # Increasing index
         self._current_index = end_idx
 
-        # Let go of remainder
-        if end_idx-start_idx != self._batch_size and no_remainder:
+        # Optionally truncate remainder
+        if self._truncate_remainder and end_idx-start_idx != self._batch_size:
             return None
 
-        # Retrieving data
-        batch = self._get_data(start_idx, end_idx)
+        # Retrieve data
+        batch = self._get_batch(start_idx, end_idx)
 
         return batch
 
-    def _get_data(self, start_idx, end_idx):
+    def _get_batch(self, start_idx, end_idx):
         # Support arrays setup
         batch_dict = {key: [] for key in ['data', 'data_opt', 'data_lengths', 'data_targets', 'domain_targets']}
 
@@ -113,3 +116,6 @@ class Set(object):
 
         return Batch(*numpy_data)
 
+    def _get_from_bin(self, index):
+        bin_, pos = self._index_to_bin_pos[index]
+        return self._binned_data[bin_][pos]
