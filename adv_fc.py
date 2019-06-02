@@ -96,16 +96,16 @@ def main(
     test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, add_channel=AddChannel)
 
     # Create source & target datasets for all domain types
-    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    train_target_set = Data.Set(train_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    train_target_set = Data.Set(train_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
 
-    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    valid_extra_set = Data.Set(valid_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
+    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
+    valid_extra_set = Data.Set(valid_data[Data.DomainType.EXTRA], BatchSize, True, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
+    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
+    test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, True, Shuffle)
 
     # Adding classification layers
     WrdSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())

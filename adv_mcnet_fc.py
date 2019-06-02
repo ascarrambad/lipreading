@@ -94,21 +94,21 @@ def main(
                               (Data.DomainType.EXTRA, ExtraSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
 
     # Create source & target datasets for all domain types
-    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    train_target_set = Data.Set(train_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    train_target_set = Data.Set(train_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
 
-    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    valid_extra_set = Data.Set(valid_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
+    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
+    valid_extra_set = Data.Set(valid_data[Data.DomainType.EXTRA], BatchSize, True, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
-    test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, Shuffle)
+    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, True, Shuffle)
+    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, True, Shuffle)
+    test_extra_set = Data.Set(test_data[Data.DomainType.EXTRA], BatchSize, True, Shuffle)
 
     # Adding classification layers
     WrdSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
@@ -159,8 +159,8 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths-1,
-                  batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
+                  batch.data_lengths,
+                  batch.data_opt[np.arange(BatchSize), batch.data_lengths-1],
                   batch.data_targets,
                   batch.domain_targets,
                   lambda_,
