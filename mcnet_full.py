@@ -135,10 +135,10 @@ def main(
     optimizer = tf.train.AdamOptimizer(LearnRate)
 
     ## AllLosses array & JointLoss creation
-    losses = builder.graph_specs[0].loss
+    losses = np.flip(builder.graph_specs[0].loss)
 
     ## Losses dictionary
-    lkeys = ['PLoss', 'GdlLoss', 'ImgLoss']
+    lkeys = list(reversed(['PLoss', 'GdlLoss', 'ImgLoss']))
     losses = dict(zip(lkeys, losses))
 
     accuracy = builder.graph_specs[0].accuracy
