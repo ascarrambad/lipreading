@@ -108,7 +108,7 @@ class Trainer(object):
             path = tf.train.latest_checkpoint(self._model_path)
             self.saver.restore(self.session, path)
 
-        self._test(test_sets, batched, feed_builder)
+        return self._test(test_sets, batched, feed_builder)
 
     def _test(self, test_sets, batched, feed_builder, epoch=None):
         # Make sure batch iterators are reset
