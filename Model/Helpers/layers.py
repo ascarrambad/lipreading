@@ -377,6 +377,11 @@ def _scaler(in_tensor):
                   y=tf.subtract(tf.reduce_max(in_tensor), min_),
                   name='Output')
 
+# *STOPGRAD
+def _stop_gradient(in_tensor):
+    return tf.stop_gradient(in_tensor,
+                            name='Output')
+
 # *RESGEN
 _resids = []
 def _residual_gen(in_tensors, axis):
@@ -445,6 +450,7 @@ layer_type = {
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
     'SCALE': _scaler,
+    'STOPGRAD', _stop_gradient,
     'RESGEN': _residual_gen,
     'RESGET': _residual_get,
 }
