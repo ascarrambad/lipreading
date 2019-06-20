@@ -20,8 +20,7 @@ ex = sacred.Experiment('GRID_MCNet_FULL')
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9'
-    (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
+    Speakers = 's1-s2-s3-s4-s5'
     WordsPerSpeaker = -1
 
     ### DATA PROCESSING
@@ -65,7 +64,7 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
+        Speakers, WordsPerSpeaker,
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
@@ -90,8 +89,7 @@ def main(
         ModelDir = ModelDir + '%d' % _config['seed']
 
     # Data Loader
-    data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
-                              (Data.DomainType.TARGET, TargetSpeakers))
+    data_loader = Data.Loader((Data.DomainType.SOURCE, Speakers))
 
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
@@ -102,10 +100,8 @@ def main(
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
 
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
     DecSpec += '_*PREDICT!img'
@@ -165,14 +161,14 @@ def main(
     trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss[2], losses, TensorboardDir, ModelDir)
     trainer.init_session()
     trainer.train(train_sets=[train_source_set],
-                  valid_sets=[valid_source_set, valid_target_set],
+                  valid_sets=[valid_source_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-    trainer.test(test_sets=[test_source_set, test_target_set],
+    trainer.test(test_sets=[test_source_set],
                  feed_builder=feed_builder,
                  batched=True)
 

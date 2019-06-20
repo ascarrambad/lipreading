@@ -20,8 +20,7 @@ ex = sacred.Experiment('GRID_MCNet_FULL_CLASS')
 def cfg():
 
     #### DATA
-    AllSpeakers = 's1-s2-s3-s4-s5-s6-s7-s8_s9'
-    (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
+    Speakers = 's6-s7-s8-s9-s10'
     WordsPerSpeaker = -1
 
     ### DATA PROCESSING
@@ -33,7 +32,7 @@ def cfg():
 
     ### NET SPECS
     #
-    NetSpec = '*STOPGRAD_*FLATFEAT!3_FC256t_FC128t'
+    NetSpec = '*STOPGRAD_*FLATFEAT!3_FC256t_FC256t'
     #
 
     ObservedGrads = '' #separate by _
@@ -48,7 +47,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     OutDir = 'Outdir/MCNet.FULL.CLASS.VALID'
-    TensorboardDir = OutDir + '/tensorboard'
+    TensorboardDir = None
     ModelDir = OutDir + '/model'
 
 ################################################################################
@@ -58,7 +57,7 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
+        Speakers, WordsPerSpeaker,
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
@@ -83,8 +82,7 @@ def main(
         ModelDir = ModelDir + '%d' % _config['seed']
 
     # Data Loader
-    data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
-                              (Data.DomainType.TARGET, TargetSpeakers))
+    data_loader = Data.Loader((Data.DomainType.SOURCE, Speakers))
 
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
@@ -95,10 +93,8 @@ def main(
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
 
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
 
     # Adding classification layers
     NetSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
@@ -112,7 +108,7 @@ def main(
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
 
     # Create network
-    builder.add_specification('CLS', NetSpec, 'ENC-CONV-2/Output', 'WordTrgs')
+    builder.add_main_specification('CLS', NetSpec, 'ENC-CONV-2/Output', 'WordTrgs')
     builder.build_model()
 
     # Setup Optimizer, Loss, Accuracy
@@ -150,14 +146,14 @@ def main(
     restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.FULL.VALID/model800430375/'))
 
     trainer.train(train_sets=[train_source_set],
-                  valid_sets=[valid_source_set, valid_target_set],
+                  valid_sets=[valid_source_set],
                   batched_valid=True,
                   stopping_type=stopping_type,
                   stopping_value=stopping_value,
                   stopping_patience=EarlyStoppingPatience,
                   feed_builder=feed_builder)
 
-    trainer.test(test_sets=[test_source_set, test_target_set],
+    trainer.test(test_sets=[test_source_set],
                  feed_builder=feed_builder,
                  batched=True)
 
