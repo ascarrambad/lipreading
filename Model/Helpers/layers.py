@@ -450,7 +450,7 @@ layer_type = {
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
     'SCALE': _scaler,
-    'STOPGRAD', _stop_gradient,
+    'STOPGRAD': _stop_gradient,
     'RESGEN': _residual_gen,
     'RESGET': _residual_get,
 }
