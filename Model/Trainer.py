@@ -52,8 +52,7 @@ class Trainer(object):
 
         # Variables init
         self._training_current_best = (-1,-9999)
-        tensorb_index = 0
-        self._last_tensorb_index = [0]*len(valid_sets)
+        self._last_tensorb_index = {x:{y: 0 for y in enums.DomainType} for x in enums.SetType}
 
         # Epochs loop
         for epoch in range(self.epochs):
@@ -77,8 +76,8 @@ class Trainer(object):
                 for f in feeds:
                     results = self.session.run(train_tensors, f)
                     if self.tensorboard_status:
-                        self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], tensorb_index)
-                    tensorb_index += 1
+                        self._tboard_writers[enums.SetType.TRAIN][enums.DomainType.SOURCE].add_summary(results[1], self._last_tensorb_index[enums.SetType.TRAIN][enums.DomainType.SOURCE])
+                    self._last_tensorb_index[enums.SetType.TRAIN][enums.DomainType.SOURCE] += 1
 
                 # Load new Batches
                 batches = list(map(lambda x: x.next_batch, train_sets))
@@ -143,8 +142,8 @@ class Trainer(object):
 
                     acc_idx = -1
                     if self.tensorboard_status and epoch != None and not (tset.type == enums.SetType.TRAIN and tset.domain_type == enums.DomainType.SOURCE):
-                        self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], self._last_tensorb_index[i])
-                        self._last_tensorb_index[i] += 1
+                        self._tboard_writers[tset.type][tset.domain_type].add_summary(res[-1], self._last_tensorb_index[tset.type][tset.domain_type])
+                        self._last_tensorb_index[tset.type][tset.domain_type] += 1
                         acc_idx = -2
 
                     for i,v in enumerate(res[:acc_idx]):
