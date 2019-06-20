@@ -73,7 +73,7 @@ class Trainer(object):
                     train_tensors += [self.summaries]
 
                 feeds = feed_builder(epoch, final_batch, True)
-                if not hasattr(feeds, '__iter__'): feeds = [feeds]
+                if type(feeds) is dict: feeds = [feeds]
                 for f in feeds:
                     results = self.session.run(train_tensors, f)
                     if self.tensorboard_status:
@@ -137,7 +137,7 @@ class Trainer(object):
             # Graph execution
             while batch is not None:
                 feeds = feed_builder(epoch if epoch != None else 0, batch, False)
-                if not hasattr(feeds, '__iter__'): feeds = [feeds]
+                if type(feeds) is dict: feeds = [feeds]
                 for f in feeds:
                     res = self.session.run(tensors, f)
 
