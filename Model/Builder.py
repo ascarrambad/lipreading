@@ -61,6 +61,12 @@ class Builder(object):
 
             graph.build(in_tensor, trg_tensor, self.init_std)
 
+    def restore_model(self, path):
+        tf.reset_default_graph()
+        saver = tf.train.import_meta_graph(path + '/graph.meta')
+
+        return saver
+
     def _get_tensor(self, name):
         if name in self.placeholders:
             return self.placeholders[name]
