@@ -66,7 +66,7 @@ class Builder(object):
         saver = tf.train.import_meta_graph(path + '/graph.meta')
 
         plc_names = [ op.name for op in tf.get_default_graph().get_operations() if op.type == "Placeholder"]
-        self.placeholders = [self._get_tensor(x) for x in plc_names]
+        self.placeholders = {x.replace('Inputs/',''):self._get_tensor(x) for x in plc_names}
 
         return saver
 
