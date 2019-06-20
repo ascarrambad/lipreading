@@ -64,6 +64,7 @@ class Builder(object):
     def restore_model(self, path):
         tf.reset_default_graph()
         saver = tf.train.import_meta_graph(path + '/graph.meta')
+        self.placeholders = { op.name.replace('Inputs/',''):op for op in tf.get_default_graph().get_operations() if op.type == "Placeholder"}
 
         return saver
 
