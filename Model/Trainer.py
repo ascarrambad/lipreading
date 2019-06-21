@@ -169,7 +169,7 @@ class Trainer(object):
 
     def _setup_tensorboard(self):
         self._tboard_writers = {x: {y: tf.summary.FileWriter(self._tensorboard_path +'/'+ x.name+'-'+y.name, self.session.graph)
-                                    for y in enums.DomainType}
+                                    for y in enums.DomainType if y != enums.DomainType.ALL}
                                 for x in enums.SetType}
 
         self.summaries = tf.summary.merge_all()
