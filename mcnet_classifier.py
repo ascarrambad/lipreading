@@ -20,6 +20,7 @@ ex = sacred.Experiment('GRID_MCNet_FULL_CLASS')
 def cfg():
 
     #### DATA
+    TrainedModelSeed = 650237723 #800430375
     Speakers = 's6-s7-s8-s9-s10'
     WordsPerSpeaker = -1
 
@@ -57,7 +58,7 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        Speakers, WordsPerSpeaker,
+        TrainedModelSeed, Speakers, WordsPerSpeaker,
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
@@ -102,7 +103,7 @@ def main(
     # Model Builder
     builder = Model.Builder(InitStd)
 
-    restorer = builder.restore_model('Outdir/MCNet.FULL.VALID/model800430375/')
+    restorer = builder.restore_model('Outdir/MCNet.FULL.VALID/model%d/' % TrainedModelSeed)
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
@@ -143,7 +144,7 @@ def main(
     trainer.init_session()
 
     # Restore Parameters
-    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.FULL.VALID/model800430375/'))
+    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.FULL.VALID/model%d/' % TrainedModelSeed))
 
     trainer.train(train_sets=[train_source_set],
                   valid_sets=[valid_source_set],
