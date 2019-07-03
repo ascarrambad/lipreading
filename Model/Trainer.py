@@ -96,13 +96,13 @@ class Trainer(object):
                     print('Stopping at [EPOCH {0}] because stop condition has been reached'.format(epoch))
                     print('Condition satisfied at [EPOCH {0}], best result: {1:.5f}'.format(best_e, best_v))
 
-                    return
+                    return best_e, best_v
 
     def test(self, test_sets, feed_builder, batched=True, restore_best=True):
         assert self.session is not None
         assert len(test_sets) > 0
 
-        if restore_best and self.model_saver_status:
+        if self.model_saver_status and restore_best:
             self.saver = tf.train.import_meta_graph(self._model_path + '/graph.meta')
             path = tf.train.latest_checkpoint(self._model_path)
             self.saver.restore(self.session, path)
