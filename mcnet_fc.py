@@ -1,5 +1,6 @@
 
 import os
+import sys
 
 import Data
 import Data.Helpers.encoding as enc
@@ -12,9 +13,10 @@ import tensorflow as tf
 #################################### SACRED ####################################
 ################################################################################
 
-import sacred
+from sacred import Experiment
+from sacred.observers import MongoObserver
 
-ex = sacred.Experiment('GRID_MCNet_FC')
+ex = Experiment('GRID_LIPREAD_MC_FC')
 
 @ex.config
 def cfg():
@@ -39,20 +41,24 @@ def cfg():
     TrgSpec = '*CONCAT!1_FC256t_FC128t_FC256t'
     #
 
-    ObservedGrads = '' #separate by _
-
     # NET TRAINING
     MaxEpochs = 100
     BatchSize = 64
-    LearnRate = 0.0003
+    LearnRate = 0.0001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MCNet.FC.VALID'
+    OutDir = 'Outdir/MC.FC'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
+
+    DBPath = None
+
+    # Prepare MongoDB batch exp
+    if DBPath != None:
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='GRID_LIPREAD_MC_FC'))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -61,7 +67,7 @@ def cfg():
 @ex.automain
 def main(
         # Speakers
-        SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
+        AllSpeakers, SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
@@ -69,7 +75,7 @@ def main(
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
+        OutDir, ModelDir, TensorboardDir, DBPath, _config
         ):
     print('Config directory is:',_config)
 
@@ -84,6 +90,14 @@ def main(
         TensorboardDir = TensorboardDir + '%d' % _config['seed']
     if ModelDir is not None:
         ModelDir = ModelDir + '%d' % _config['seed']
+
+    if DBPath != None:
+        LogPath = OutDir + '/Logs/%d.txt' % _config['seed']
+
+        try: os.makedirs(os.path.dirname(LogPath))
+        except OSError as exc: pass
+
+        sys.stdout = open(LogPath, 'w+')
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
@@ -153,16 +167,18 @@ def main(
 
     trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
-    trainer.train(train_sets=[train_source_set],
-                  valid_sets=[valid_source_set, valid_target_set],
-                  batched_valid=True,
-                  stopping_type=stopping_type,
-                  stopping_value=stopping_value,
-                  stopping_patience=EarlyStoppingPatience,
-                  feed_builder=feed_builder)
+    best_e, best_v = trainer.train(train_sets=[train_source_set],
+                                   valid_sets=[valid_source_set, valid_target_set],
+                                   batched_valid=True,
+                                   stopping_type=stopping_type,
+                                   stopping_value=stopping_value,
+                                   stopping_patience=EarlyStoppingPatience,
+                                   feed_builder=feed_builder)
 
-    trainer.test(test_sets=[test_source_set, test_target_set],
-                 feed_builder=feed_builder,
-                 batched=True)
+    test_result = trainer.test(test_sets=[test_source_set, test_target_set],
+                               feed_builder=feed_builder,
+                               batched=True)
 
-
+    if DBPath != None:
+        test_result = list(test_result[Data.SetType.TEST].values())
+        return [best_e, best_v], test_result[0], test_result[1], LogPath
