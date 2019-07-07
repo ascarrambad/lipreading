@@ -329,12 +329,23 @@ def _unpooling(in_tensor, multiplier):
                                     size=out_size,
                                     name='Output')
 
-# *CONCAT!last
+# *CONCAT!1
 def _concatenate(in_tensors, axis):
 
     axis = int(axis)
 
     return tf.concat(in_tensors, axis=axis, name='Output')
+
+# *SPLIT!1
+def _split(in_tensor, axis, splits_num=2):
+
+    axis = int(axis)
+    splits_num = int(splits_num)
+
+    splits = tf.split(value=in_tensors,
+                      num_or_size_splits=splits_num,
+                      axis=axis)
+    return [tf.identity(x, name='Output-%d'%i) for i,x in enumerate(splits)]
 
 # SOBEL
 def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
@@ -447,6 +458,7 @@ layer_type = {
     'MPTD': _max_pool3d,
     'UNP': _unpooling,
     'CONCAT': _concatenate,
+    'SPLIT': _split,
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
     'SCALE': _scaler,
