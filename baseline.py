@@ -38,7 +38,7 @@ def cfg():
     #
 
     # NET TRAINING
-    MaxEpochs = 100
+    MaxEpochs = 200
     BatchSize = 64 # MULTIPLIED BY 2 (source and target)
     LearnRate = 0.001
     InitStd = 0.1
@@ -172,4 +172,4 @@ def main(
 
     if DBPath != None:
         test_result = list(test_result[Data.SetType.TEST].values())
-        return [best_e, best_v], list(test_result[0]), list(test_result[1]), LogPath
+        return [best_e, best_v], list(test_result[0]), list(test_result[1])
