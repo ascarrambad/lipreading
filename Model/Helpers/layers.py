@@ -144,25 +144,42 @@ def _predict(in_tensor, error, trg_tensor):
         return loss, hits, accuracy
 
 # *LSTM!64.64-0
-def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
+_lstm_arr = []
+def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm_state_idx=0, seq_len_tensor_name='Inputs/SeqLengths'):
 
     num_hidden_units = [int(x) for x in num_hidden_units.split('.')]
     out_hidden_state = bool(int(out_hidden_state))
-    zero_init = bool(int(zero_init))
+    init_type = int(init_type)
+    lstm_state_idx = int(lstm_state_idx)
+
+    assert init_type in range(3)
+
+    global _lstm_arr
 
     cells = [tf.nn.rnn_cell.LSTMCell(num, name='LSTMCell-%d'%num) for num in num_hidden_units]
     multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
 
     seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
 
-    if zero_init:
+    if init_type == 0: # default
+        outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, dtype=tf.float32)
+    elif init_type == 1: # previous lstm state init
+        state = _lstm_arr[lstm_state_idx][1]
+        outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, initial_state=state, dtype=tf.float32)
+    elif init_type == 2: # zero init
         batch_size = in_tensor.shape[0]
         state = multi_cell.zero_state(batch_size, tf.float32)
-        outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, dtype=tf.float32, initial_state=state)
+        outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, initial_state=state, dtype=tf.float32)
+    # elif init_type == 3: # in_tensor as c state init
+    #     state = _lstm_arr[lstm_state_idx]
+    #     state = tf.nn.rnn_cell.LSTMStateTuple(in_tensor[1])
+    #     outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, initial_state=state, dtype=tf.float32)
     else:
-        outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, dtype=tf.float32)
+        assert False
 
-    out_tensor = outputs_state[1][-1].c if out_hidden_state else outputs_state[0]
+    _lstm_arr.append(outputs_state)
+
+    out_tensor = outputs_state[1][0].c if out_hidden_state else outputs_state[0]
 
     return tf.identity(out_tensor, name='Output')
 

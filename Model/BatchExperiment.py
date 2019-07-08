@@ -8,7 +8,7 @@ import re
 
 import numpy as np
 
-os.environ["OMP_NUM_THREADS"] = "1"
+os.environ['OMP_NUM_THREADS'] = '1'
 
 class BatchExperiment(object):
     def __init__(self, script_names, gpus, exp_params, db_path):
