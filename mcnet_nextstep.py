@@ -45,7 +45,7 @@ def cfg():
     #
 
     # NET TRAINING
-    MaxEpochs = 100
+    MaxEpochs = 200
     BatchSize = 64
     LearnRate = 0.0001
     InitStd = 0.1

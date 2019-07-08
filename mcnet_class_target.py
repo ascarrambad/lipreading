@@ -42,7 +42,7 @@ def cfg():
     #
 
     # NET TRAINING
-    MaxEpochs = 100
+    MaxEpochs = 200
     BatchSize = 64
     LearnRate = 0.0001
     InitStd = 0.1
@@ -123,7 +123,7 @@ def main(
     # Model Builder
     builder = Model.Builder(InitStd)
 
-    restorer = builder.restore_model('Outdir/MCNet.FULL.VALID/model%d/' % TrainedModelSeed)
+    restorer = builder.restore_model('Outdir/MCNet.NEXTSTEP/model%d/' % TrainedModelSeed)
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
@@ -166,7 +166,7 @@ def main(
     trainer.init_session()
 
     # Restore Parameters
-    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.FULL.VALID/model%d/' % TrainedModelSeed))
+    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.NEXTSTEP/model%d/' % TrainedModelSeed))
 
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],
