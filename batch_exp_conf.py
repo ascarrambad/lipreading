@@ -76,12 +76,12 @@ SPEAKERS_SIXTEEN = [
     's20-s1-s2-s3-s4-s5-s6-s7-s8-s9-s10-s11-s12-s13-s14-s15_s16',
 ]
 
-Params = {'AllSpeakers': tmp, 'TensorboardDir': None}
+Params = {'AllSpeakers': SPEAKERS_COUPLES, 'TensorboardDir': None, LearnRate: [0.0001, 0.0003, 0.0005, 0.0007, 0.0009, 0.001]}
 
 db_path = 'mongodb+srv://lab:alchemist94@experiments-xa6jh.mongodb.net/test?retryWrites=true&w=majority'
-scripts = ['baseline', 'mcnet_fcred', 'mnet_fcred']
+scripts = ['mcnet_fc', 'mcnet_fc_bsl', 'mnet_fc_bsl', 'baseline']
 
-exp = BatchExperiment(script_names=scripts, gpus=[0,1], exp_params=Params, db_path=db_path)
+exp = BatchExperiment(script_names=scripts, gpus=[0,1,2,3], exp_params=Params, db_path=db_path)
 exp.run()
 
 print('Done.')
