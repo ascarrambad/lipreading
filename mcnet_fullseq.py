@@ -33,7 +33,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!0_*LSTM!256_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!0_*LSTM!256_*MASKSEQ'
     #
     CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!2_*LSTM!256_*MASKSEQ'
     #
@@ -71,7 +71,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, TrgSpec,
+        MotSpec, CntSpec, TrgSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
@@ -131,11 +131,11 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('DYN', DynSpec, 'DiffFrames', None)
+    builder.add_specification('MOT', MotSpec, 'DiffFrames', None)
     builder.add_specification('CNT', CntSpec, 'Frames', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
+    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','EDC'])
+    builder.build_model(build_order=['MOT','CNT','EDC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)

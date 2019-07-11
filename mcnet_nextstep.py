@@ -16,7 +16,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('GRID_LIPREAD_MCNet_NEXTSTEP')
+ex = Experiment('LipR.MCNet.PreProc')
 
 @ex.config
 def cfg():
@@ -33,7 +33,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-3_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!7_*MP!2-2_*ORESHAPE_*CONVLSTM!64-3_*MASKSEQ'
     #
     CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
     #
@@ -53,15 +53,16 @@ def cfg():
     EarlyStoppingValue = 'LOSS'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MCNet.NEXTSTEP'
+    DBPath = None
+    Collection = 'NEXTSTEP'
+
+    OutDir = 'Outdir/MCNet.PreProc'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
-    DBPath = None
-
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='GRID_LIPREAD_MCNet_NEXTSTEP'))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc'))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -74,7 +75,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, EncSpec, ResSpec, DecSpec,
+        MotSpec, CntSpec, EncSpec, ResSpec, DecSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
@@ -131,15 +132,15 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('DYN', DynSpec, 'Frames', None)
+    builder.add_specification('MOT', MotSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_specification('ENC', EncSpec, ['DYN-MASKSEQ-9/Output', 'CNT-MP-9/Output'], None)
-    res_inputs = ['DYN-CONV-1/Output', 'DYN-CONV-3/Output','DYN-CONV-5/Output',
+    builder.add_specification('ENC', EncSpec, ['MOT-MASKSEQ-9/Output', 'CNT-MP-9/Output'], None)
+    res_inputs = ['MOT-CONV-1/Output', 'MOT-CONV-3/Output','MOT-CONV-5/Output',
                   'CNT-CONV-1/Output', 'CNT-CONV-4/Output', 'CNT-CONV-8/Output']
     builder.add_specification('RES', ResSpec, res_inputs, None)
     builder.add_main_specification('DEC', DecSpec, 'ENC-CONV-3/Output', 'FrameTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','RES','ENC','DEC'])
+    builder.build_model(build_order=['MOT','CNT','RES','ENC','DEC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
