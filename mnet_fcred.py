@@ -16,7 +16,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('GRID_LIPREAD_MC_FCbsl_MotionOnly')
+ex = Experiment('LipR.MotionOnly')
 
 @ex.config
 def cfg():
@@ -46,15 +46,16 @@ def cfg():
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MC.FCbsl.MotionOnly'
+    DBPath = None
+    Collection = 'BaselineLike'
+
+    OutDir = 'Outdir/MotionOnly'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
-    DBPath = None
-
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='GRID_LIPREAD_MC_FCbsl_MotionOnly'))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MotionOnly', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
