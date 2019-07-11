@@ -69,6 +69,9 @@ class BatchExperiment(object):
 
                 self._running_tasks[nextGPU] = P
 
+        while len(self._running_tasks) != 0:
+            print('Waiting for all experiments to end.')
+            time.sleep(2)
 
     def _slot_request(self):
         # wait for free slot
