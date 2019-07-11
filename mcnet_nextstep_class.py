@@ -16,7 +16,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('GRID_LIPREAD_MCNet_Class')
+ex = Experiment('LipR.MCNet.Class')
 
 @ex.config
 def cfg():
@@ -36,7 +36,7 @@ def cfg():
 
     ### NET SPECS
     #
-    DynTSpec = '*STOPGRAD_*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ'
+    MotTSpec = '*STOPGRAD_*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ'
     CntTSpec = '*STOPGRAD_*FLATFEAT!3'
     TrgSpec = '*CONCAT!1_FC128t'
     #
@@ -50,6 +50,9 @@ def cfg():
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
+    DBPath = None
+    Collection = 'NEXTSTEP'
+
     OutDir = 'Outdir/MCNet.Class'
     TensorboardDir = None
     ModelDir = OutDir + '/model'
@@ -58,7 +61,7 @@ def cfg():
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='GRID_LIPREAD_MCNet_Class'))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_Class', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -71,7 +74,7 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynTSpec, CntTSpec, TrgSpec,
+        MotTSpec, CntTSpec, TrgSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
@@ -123,16 +126,16 @@ def main(
     # Model Builder
     builder = Model.Builder(InitStd)
 
-    restorer = builder.restore_model('Outdir/MCNet.NEXTSTEP/model%d/' % TrainedModelSeed)
+    restorer = builder.restore_model('Outdir/MCNet.PreProc/model%d/' % TrainedModelSeed)
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
 
     # Create network
-    builder.add_specification('DYNT', DynTSpec, 'DYN-ORESHAPE-7/Output', None)
+    builder.add_specification('MOTT', MotTSpec, 'DYN-ORESHAPE-7/Output', None)
     builder.add_specification('CNTT', CntTSpec, 'CNT-MP-9/Output', None)
-    builder.add_main_specification('TRG', TrgSpec, ['DYNT-MASKSEQ-9/Output', 'CNTT-FLATFEAT-1/Output'], 'WordTrgs')
-    builder.build_model(build_order=['DYNT', 'CNTT', 'TRG'])
+    builder.add_main_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-9/Output', 'CNTT-FLATFEAT-1/Output'], 'WordTrgs')
+    builder.build_model(build_order=['MOTT', 'CNTT', 'TRG'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
