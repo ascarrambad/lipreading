@@ -17,4 +17,4 @@ class SetType(Enum):
             return consts.TEST_PATH
 
 class DomainType(Enum):
-    SOURCE, TARGET, EXTRA, ALL = range(4)
+    SOURCE, TARGET, ALL = range(3)

@@ -120,7 +120,7 @@ class Trainer(object):
         for i,tset in enumerate(test_sets):
 
             # Current loss and accuracy support arrays
-            set_losses = {k: [] for k in range(len(self.eval_losses.values()))}
+            set_losses = {k: [] for k in range(len(self.eval_losses))}
             set_accs = []
 
             # Load initial Batch
