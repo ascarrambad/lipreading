@@ -15,7 +15,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('GRID_LIPREAD_MCfullseq_FC')
+ex = Experiment('LipR.MotCnt')
 
 @ex.config
 def cfg():
@@ -37,7 +37,7 @@ def cfg():
     #
     CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!2_*LSTM!256_*MASKSEQ'
     #
-    TrgSpec = '*CONCAT!1_FC256t_FC128t_FC256t'
+    TrgSpec = '*CONCAT!1_FC128t'
     #
 
     # NET TRAINING
@@ -49,15 +49,16 @@ def cfg():
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MCfullseq.FC'
+    DBPath = None
+    Collection = 'DualSeq'
+
+    OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
-    DBPath = None
-
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='GRID_LIPREAD_MCfullseq_FC'))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MotCnt', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
