@@ -36,7 +36,7 @@ def cfg():
     ### NET SPECS
     DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2_FC128t'
+    CntSpec = '*FLATFEAT!2_FC128t_*DP_FC128t_*DP'
     #
     TrgSpec = '*CONCAT!1_FC128t'
     #
@@ -51,7 +51,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'BaselineLike'
+    Collection = 'BothBaselineLike'
 
     OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'

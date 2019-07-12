@@ -34,7 +34,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ_FC128t'
+    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ_FC256t'
     #
 
     # NET TRAINING
@@ -47,7 +47,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'FC'
+    Collection = 'FC-Trg256'
 
     OutDir = 'Outdir/MotionOnly'
     TensorboardDir = OutDir + '/tensorboard'

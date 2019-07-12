@@ -38,7 +38,7 @@ def cfg():
     #
     CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
-    TrgSpec = '*CONCAT!1_FC256t_FC128t_FC256t'
+    TrgSpec = '*CONCAT!1_FC256t'
     #
 
     # NET TRAINING
@@ -51,7 +51,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'FC'
+    Collection = 'FC-Trg256'
 
     OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'
