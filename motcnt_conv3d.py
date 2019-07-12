@@ -34,7 +34,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    MotSpec = 'CONVTD8r!3-3_*MPTD!2-2_CONVTD16r!5-5_*MPTD!2-2_*CONVLSTM!32-5_*MASKSEQ'
+    MotSpec = 'CONVTD8r!3-3_*MPTD!2-2_CONVTD16r!5-3_*MPTD!2-2_CONVTD32r!5-3_*MPTD!2-2_*CONVLSTM!32-5_*MASKSEQ'
     #
     CntSpec = 'CONV8r!3_*MP!2-2_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2'
     #
@@ -130,7 +130,7 @@ def main(
     # Create network
     builder.add_specification('MOT', MotSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MP-5/Output'], 'WordTrgs')
 
     builder.build_model(build_order=['MOT','CNT','EDC'])
 
