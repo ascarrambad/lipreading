@@ -33,11 +33,11 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!0_*LSTM!256_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE!0_*LSTM!128_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!2_*LSTM!256_*MASKSEQ'
+    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE!2_*LSTM!128_*MASKSEQ'
     #
-    TrgSpec = '*CONCAT!1_FC256t'
+    TrgSpec = '*CONCAT!1_FC128t'
     #
 
     # NET TRAINING
@@ -182,3 +182,4 @@ def main(
     if DBPath != None:
         test_result = list(test_result[Data.SetType.TEST].values())
         return [best_e, best_v], list(test_result[0]), list(test_result[1])
+
