@@ -3,7 +3,7 @@ import numpy as np
 
 from . import consts
 
-def sequence_processor(means, stds, add_channel):
+def sequence_processor(means, stds, add_channel, downsample):
     def processingFunction(wordSeq, speaker):
         # reshape to remain generic
         origShape = wordSeq.shape
@@ -15,6 +15,9 @@ def sequence_processor(means, stds, add_channel):
             wordSeq /= stds[speaker]
 
         wordSeq.shape = origShape
+
+        if downsample:
+            wordSeq = wordSeq[:,::2,::2]
 
         if add_channel:
             wordSeq = wordSeq[...,None]
