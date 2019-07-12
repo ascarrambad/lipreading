@@ -50,7 +50,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'FC'
+    Collection = 'BaselineLike'
 
     OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
