@@ -71,17 +71,20 @@ class BatchExperiment(object):
 
         while len(self._running_tasks) != 0:
             print('Waiting for all experiments to end.')
-            time.sleep(2)
+            self._remove_task()
 
     def _slot_request(self):
         # wait for free slot
         while len(self._running_tasks) >= len(self._gpus):
             print('Waiting for slot')
-            for gpu,task in self._running_tasks.items():
-                if task.poll() is not None:
-                    # remove finished task
-                    print('Removing task %s' % str(task))
-                    del self._running_tasks[gpu]
-                    break
-            else:
-                time.sleep(2)
+            self._remove_task()
+
+    def _remove_task(self):
+        for gpu,task in self._running_tasks.items():
+            if task.poll() is not None:
+                # remove finished task
+                print('Removing task %s' % str(task))
+                del self._running_tasks[gpu]
+                break
+        else:
+            time.sleep(2)
