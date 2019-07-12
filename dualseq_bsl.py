@@ -133,7 +133,7 @@ def main(
     # Create network
     builder.add_specification('MOT', MotSpec, 'DiffFrames', None)
     builder.add_specification('CNT', CntSpec, 'Frames', None)
-    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
+    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-8/Output', 'CNT-MASKSEQ-8/Output'], 'WordTrgs')
 
     builder.build_model(build_order=['MOT','CNT','EDC'])
 
