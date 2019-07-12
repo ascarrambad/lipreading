@@ -15,7 +15,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('LipR.MotCnt')
+ex = Experiment('LipR.DualSeq')
 
 @ex.config
 def cfg():
@@ -50,15 +50,15 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'DualSeq'
+    Collection = 'FC'
 
-    OutDir = 'Outdir/MotCnt'
+    OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MotCnt', collection=Collection))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_DualSeq', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
