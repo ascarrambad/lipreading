@@ -109,7 +109,7 @@ class Set(object):
         padded_array = funcs.pad_nparrays(paddings, batch_dict['data'])
 
         # OPTIONALLY ENABLED
-        if !any(x is None for x in batch_dict['data_opt']):
+        if not any(x is None for x in batch_dict['data_opt']):
             max_seq_len = max([seq.shape[0] for seq in batch_dict['data_opt']])
 
             paddings = [[0, max_seq_len-x.shape[0]] for x in batch_dict['data_opt']]
@@ -122,7 +122,7 @@ class Set(object):
         lists[0] = padded_array
 
         # OPTIONALLY ENABLED
-        if !any(x is None for x in batch_dict['data_opt']):
+        if not any(x is None for x in batch_dict['data_opt']):
             lists[1] = padded_array2
 
         numpy_data = [np.array(arr) for arr in lists]
