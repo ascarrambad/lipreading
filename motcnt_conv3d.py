@@ -38,7 +38,7 @@ def cfg():
     #
     CntSpec = 'CONV8r!3_*MP!2-2_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2'
     #
-    TrgSpec = '*CONCAT!3_CONV32r!5_*FLATFEAT!3_FC128t'
+    TrgSpec = '*CONCAT!3_*FLATFEAT!3_FC128t'
     #
 
     # NET TRAINING
@@ -56,6 +56,10 @@ def cfg():
     OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
+
+    # Prepare MongoDB batch exp
+    if DBPath != None:
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_DualSeq', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -151,7 +155,7 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths-1,
+                  batch.data_lengths,
                   batch.data[np.arange(len(batch.data)),batch.data_lengths-1],
                   batch.data_targets,
                   training]
