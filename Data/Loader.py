@@ -28,7 +28,7 @@ class Loader(object):
         encoding.encode_speakers(all_speakers)
 
     # Load data from dbtype
-    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, diff_frames=False, add_channel=False, verbose=False):
+    def load_data(self, dbtype, max_words_per_speaker, normalization_vars, diff_frames=False, add_channel=False, downsample=False, verbose=False):
 
         dmn_spk_tuples = [x for x in self.domains_speakers.items() if x[0] != enums.DomainType.ALL]
         if dbtype == enums.SetType.TRAIN:
@@ -41,10 +41,10 @@ class Loader(object):
             seq_data = self._collect_seq_data(dbtype, spk, max_words_per_speaker)
 
             (means, stds) = self._load_video_stats(spk, normalization_vars)
-            seq_proc = funcs.sequence_processor(means, stds, add_channel)
+            seq_proc = funcs.sequence_processor(means, stds, add_channel, downsample)
 
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose=verbose)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose)
             domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
@@ -100,7 +100,7 @@ class Loader(object):
 
         return (means, stds)
 
-    def _load_and_bin(self, seq_data, speakers, sequence_processor, diff_frames, verbose, labelResamplingFactor=1):
+    def _load_and_bin(self, seq_data, speakers, sequence_processor, diff_frames, verbose):
 
         # load all data as pickle files
         # this is not a major memory hog since we have not yet upsampled (we'll see)
@@ -145,8 +145,6 @@ class Loader(object):
             # Iterate over words and fill return objects
             for word_frames in words_frames:
                 (word, fromFrame, toFrame) = word_frames
-                fromFrame = fromFrame * labelResamplingFactor
-                toFrame = toFrame * labelResamplingFactor
                 rightDelta = (toFrame + 1) - sequence.shape[0]
 
                 if rightDelta > 0:
