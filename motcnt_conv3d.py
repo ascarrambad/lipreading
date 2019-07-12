@@ -1,5 +1,6 @@
 
 import os
+import sys
 
 import Data
 import Data.Helpers.encoding as enc
@@ -12,9 +13,10 @@ import tensorflow as tf
 #################################### SACRED ####################################
 ################################################################################
 
-import sacred
+from sacred import Experiment
+from sacred.observers import MongoObserver
 
-ex = sacred.Experiment('GRID_MCNet_CONV3D')
+ex = Experiment('LipR.MotCnt')
 
 @ex.config
 def cfg():
@@ -32,25 +34,26 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = 'CONVTD16r!5-3_*MPTD!2-2_CONVTD32r!5-3_*MPTD!2-2_CONVTD64r!7-5_*MPTD!2-2_*CONVLSTM!64-7_*MASKSEQ'
+    MotSpec = 'CONVTD8r!3-3_*MPTD!2-2_CONVTD16r!5-5_*MPTD!2-2_*CONVLSTM!32-5_*MASKSEQ'
     #
-    CntSpec = 'CONV16r!3_CONV16r!3_*MP!2-2_CONV32r!3_CONV32r!3-1_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2'
+    CntSpec = 'CONV8r!3_*MP!2-2_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2'
     #
-    TrgSpec = '*CONCAT!3_CONV64r!3_CONV32r!3_CONV64r!3_*FLATFEAT!3_FC256t_FC128t'
+    TrgSpec = '*CONCAT!3_CONV32r!5_*FLATFEAT!3_FC128t'
     #
-
-    ObservedGrads = '' #separate by _
 
     # NET TRAINING
-    MaxEpochs = 100
+    MaxEpochs = 200
     BatchSize = 64
-    LearnRate = 0.0003
+    LearnRate = 0.0001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
-    OutDir = 'Outdir/MCNet.3D.VALID'
+    DBPath = None
+    Collection = 'Conv3D'
+
+    OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
@@ -65,11 +68,11 @@ def main(
         # Data
         VideoNorm, AddChannel, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, TrgSpec,
+        MotSpec, CntSpec, TrgSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
-        ObservedGrads, OutDir, ModelDir, TensorboardDir, _config
+        OutDir, ModelDir, TensorboardDir, DBPath, _config
         ):
     print('Config directory is:',_config)
 
@@ -84,6 +87,14 @@ def main(
         TensorboardDir = TensorboardDir + '%d' % _config['seed']
     if ModelDir is not None:
         ModelDir = ModelDir + '%d' % _config['seed']
+
+    if DBPath != None:
+        LogPath = OutDir + '/Logs/%d.txt' % _config['seed']
+
+        try: os.makedirs(os.path.dirname(LogPath))
+        except OSError as exc: pass
+
+        sys.stdout = open(LogPath, 'w+')
 
     # Data Loader
     data_loader = Data.Loader((Data.DomainType.SOURCE, SourceSpeakers),
@@ -117,11 +128,11 @@ def main(
     builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('DYN', DynSpec, 'Frames', None)
+    builder.add_specification('MOT', MotSpec, 'Frames', None)
     builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-7/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MP-9/Output'], 'WordTrgs')
 
-    builder.build_model(build_order=['DYN','CNT','EDC'])
+    builder.build_model(build_order=['MOT','CNT','EDC'])
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
@@ -153,16 +164,18 @@ def main(
 
     trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
     trainer.init_session()
-    trainer.train(train_sets=[train_source_set],
-                  valid_sets=[valid_source_set, valid_target_set],
-                  batched_valid=True,
-                  stopping_type=stopping_type,
-                  stopping_value=stopping_value,
-                  stopping_patience=EarlyStoppingPatience,
-                  feed_builder=feed_builder)
+    best_e, best_v = trainer.train(train_sets=[train_source_set],
+                                   valid_sets=[valid_source_set, valid_target_set],
+                                   batched_valid=True,
+                                   stopping_type=stopping_type,
+                                   stopping_value=stopping_value,
+                                   stopping_patience=EarlyStoppingPatience,
+                                   feed_builder=feed_builder)
 
-    trainer.test(test_sets=[test_source_set, test_target_set],
-                 feed_builder=feed_builder,
-                 batched=True)
+    test_result = trainer.test(test_sets=[test_source_set, test_target_set],
+                               feed_builder=feed_builder,
+                               batched=True)
 
-
+    if DBPath != None:
+        test_result = list(test_result[Data.SetType.TEST].values())
+        return [best_e, best_v], list(test_result[0]), list(test_result[1])
