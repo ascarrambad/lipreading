@@ -71,13 +71,13 @@ class BatchExperiment(object):
                 self._running_tasks[nextGPU] = P
 
         while len(self._running_tasks) != 0:
-            print('Waiting for all experiments to end ... %s' % self._load_cur, end='\r')
+            print('Waiting for all experiments to end ... %s' % next(self._load_cur), end='\r')
             self._remove_task()
 
     def _slot_request(self):
         # wait for free slot
         while len(self._running_tasks) >= len(self._gpus):
-            print('Waiting for slot ... %s' % self._load_cur, end='\r')
+            print('Waiting for slot ... %s' % next(self._load_cur), end='\r')
             self._remove_task()
 
     def _remove_task(self):
