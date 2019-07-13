@@ -13,7 +13,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 class BatchExperiment(object):
     def __init__(self, script_names, gpus, exp_params, db_path):
 
-        self._load_cur = ['/','-','\\','|']
+        self._load_cur = itertools.cycle(['/','-','\\','|'])
 
         self._script_names = script_names
         self._gpus = set(gpus)
