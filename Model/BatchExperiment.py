@@ -13,6 +13,8 @@ os.environ['OMP_NUM_THREADS'] = '1'
 class BatchExperiment(object):
     def __init__(self, script_names, gpus, exp_params, db_path):
 
+        self._load_cur = ['/','-','\\','|']
+
         self._script_names = script_names
         self._gpus = set(gpus)
         self._db_path = db_path
@@ -34,7 +36,6 @@ class BatchExperiment(object):
 
         # iteration, RunningTasks is indexed by GPU
         self._running_tasks = dict()
-
 
     def run(self):
         for script in self._script_names:
@@ -70,13 +71,13 @@ class BatchExperiment(object):
                 self._running_tasks[nextGPU] = P
 
         while len(self._running_tasks) != 0:
-            print('Waiting for all experiments to end.')
+            print('Waiting for all experiments to end ... %s' % self._load_cur, end='\r')
             self._remove_task()
 
     def _slot_request(self):
         # wait for free slot
         while len(self._running_tasks) >= len(self._gpus):
-            print('Waiting for slot')
+            print('Waiting for slot ... %s' % self._load_cur, end='\r')
             self._remove_task()
 
     def _remove_task(self):
