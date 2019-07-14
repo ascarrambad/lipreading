@@ -62,7 +62,7 @@ def cfg():
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc'))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
