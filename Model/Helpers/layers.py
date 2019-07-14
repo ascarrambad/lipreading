@@ -137,6 +137,7 @@ def _predict(in_tensor, error, trg_tensor):
         tf.summary.scalar('Loss', loss)
     tf.summary.scalar('Accuracy', accuracy)
     tf.summary.image('PredFrame',in_tensor)
+    tf.summary.image('TrgFrame',trg_tensor)
 
     if error == 'img':
         return [loss, gdl_loss, img_loss], hits, accuracy
