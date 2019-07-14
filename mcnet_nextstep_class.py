@@ -37,7 +37,7 @@ def cfg():
     ### NET SPECS
     #
     MotTSpec = '*STOPGRAD_*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ'
-    CntTSpec = '*STOPGRAD_FC128t_*FLATFEAT!3'
+    CntTSpec = '*STOPGRAD_*FLATFEAT!3_FC128t'
     TrgSpec = '*CONCAT!1_FC128t'
     #
 
