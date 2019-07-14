@@ -169,7 +169,7 @@ def main(
     trainer.init_session()
 
     # Restore Parameters
-    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.NEXTSTEP/model%d/' % TrainedModelSeed))
+    restorer.restore(trainer.session, tf.train.latest_checkpoint('Outdir/MCNet.PreProc/model%d/' % TrainedModelSeed))
 
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],
