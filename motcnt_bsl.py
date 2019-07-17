@@ -44,7 +44,7 @@ def cfg():
     # NET TRAINING
     MaxEpochs = 200
     BatchSize = 64
-    LearnRate = 0.0001
+    LearnRate = 0.0007
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'ACCURACY'
