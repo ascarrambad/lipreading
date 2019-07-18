@@ -40,8 +40,8 @@ class Loader(object):
             # Get sequence labels
             seq_data = self._collect_seq_data(dbtype, spk, max_words_per_speaker)
 
-            (means, stds) = self._load_video_stats(spk, normalization_vars)
-            seq_proc = funcs.sequence_processor(means, stds, add_channel, downsample)
+            (means, stds) = self._load_video_stats(spk, diff_frames, normalization_vars)
+            seq_proc = funcs.sequence_processor(means, stds, diff_frames, add_channel, downsample)
 
             # Load actual data
             binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose)
@@ -83,15 +83,19 @@ class Loader(object):
 
         return seq_data
 
-    def _load_video_stats(self, speakers, normalization_vars):
+    def _load_video_stats(self, speakers, diff_frames, normalization_vars):
         assert normalization_vars in [ '', 'M', 'MV' ]
 
         means = {} if 'M' in normalization_vars else None
         stds = {} if 'V' in normalization_vars else None
 
         for spk in speakers:
-            means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
-            stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+            if diff_frames:
+                means_file = consts.DIFFSTATSDIR + '/means-%s.npy' % spk
+                stds_file = consts.DIFFSTATSDIR + '/stds-%s.npy' % spk
+            else:
+                means_file = consts.STATSDIR + '/MEAN-AUD-D.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+                stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
 
             if 'M' in normalization_vars:
                 means[spk] = np.load(means_file)
@@ -135,12 +139,6 @@ class Loader(object):
                 continue
 
             words_frames = seq_data[seqKey] # [(word, fromFrame, toFrame)]
-
-            # Optionally computes the difference between frames
-            if diff_frames:
-                prev = sequence[:-1]
-                next_ = sequence[1:]
-                diff_sequence = next_ - prev
 
             # Iterate over words and fill return objects
             for word_frames in words_frames:

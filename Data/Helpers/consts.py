@@ -24,6 +24,7 @@ elif 'AVSRHOST' in os.environ and os.environ['AVSRHOST'] == 'CLUS':
 else:
     LISTPATH = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers'
     STATSDIR = '/home/mwand/projects/AudioVisual/GRID-old/Stats'
+    DIFFSTATSDIR = '/home/rivama/projects/AdvRecognizer/DiffStats'
     DICTIONARYFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/Dictionary.txt'
     PHONELISTFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/PhoneList.txt'
     WORDLISTFILE = '/home/mwand/projects/AudioVisual/GRID-old/FullDatabaseAllSpeakers/WordList.txt'
