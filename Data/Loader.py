@@ -40,11 +40,11 @@ class Loader(object):
             # Get sequence labels
             seq_data = self._collect_seq_data(dbtype, spk, max_words_per_speaker)
 
-            (means, stds) = self._load_video_stats(spk, diff_frames, normalization_vars)
-            seq_proc = funcs.sequence_processor(means, stds, diff_frames, add_channel, downsample)
+            means, stds, diff_means, diff_stds = self._load_video_stats(spk, diff_frames, normalization_vars)
+            seq_proc = funcs.sequence_processor(means, stds, add_channel, downsample, diff_frames, diff_means, diff_stds)
 
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, verbose)
             domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
@@ -89,20 +89,25 @@ class Loader(object):
         means = {} if 'M' in normalization_vars else None
         stds = {} if 'V' in normalization_vars else None
 
+        diff_means = {} if 'M' in normalization_vars else None
+        diff_stds = {} if 'V' in normalization_vars else None
+
         for spk in speakers:
             if diff_frames:
-                means_file = consts.DIFFSTATSDIR + '/means-%s.npy' % spk
-                stds_file = consts.DIFFSTATSDIR + '/stds-%s.npy' % spk
-            else:
-                means_file = consts.STATSDIR + '/MEAN-AUD-D.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
-                stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+                diff_means_file = consts.DIFFSTATSDIR + '/means-%s.npy' % spk
+                diff_stds_file = consts.DIFFSTATSDIR + '/stds-%s.npy' % spk
+
+            means_file = consts.STATSDIR + '/MEAN-AUD-D.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+            stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
 
             if 'M' in normalization_vars:
                 means[spk] = np.load(means_file)
+                if diff_frames: diff_means[spk] = np.load(diff_means_file)
             if 'V' in normalization_vars:
                 stds[spk] = np.load(stds_file)
+                if diff_frames: diff_stds[spk] = np.load(diff_stds_file)
 
-        return (means, stds)
+        return means, stds, diff_means, diff_stds
 
     def _load_and_bin(self, seq_data, speakers, sequence_processor, diff_frames, verbose):
 
@@ -126,7 +131,7 @@ class Loader(object):
             try:
                 seq_pair = videoData[speaker][name]
                 (sequence, illegal_frames) = seq_pair
-                sequence = sequence_processor(sequence, speaker)
+                sequence, diff_sequence = sequence_processor(sequence, speaker)
             except Exception as e:
                 if verbose:
                     print('Error for sequence %s: %s' % (seqKey,str(e)))
