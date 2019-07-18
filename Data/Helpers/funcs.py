@@ -3,11 +3,16 @@ import numpy as np
 
 from . import consts
 
-def sequence_processor(means, stds, add_channel, downsample):
+def sequence_processor(means, stds, diff_frames, add_channel, downsample):
     def processingFunction(wordSeq, speaker):
         # reshape to remain generic
         origShape = wordSeq.shape
         wordSeq.shape = (wordSeq.shape[0], np.prod(wordSeq.shape[1:]))
+
+        if diff_frames:
+            prev = wordSeq[:-1]
+            next_ = wordSeq[1:]
+            wordSeq = next_ - prev
 
         if means is not None:
             wordSeq -= means[speaker]
