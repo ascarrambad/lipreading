@@ -97,7 +97,7 @@ class Loader(object):
                 diff_means_file = consts.DIFFSTATSDIR + '/means-%s.npy' % spk
                 diff_stds_file = consts.DIFFSTATSDIR + '/stds-%s.npy' % spk
 
-            means_file = consts.STATSDIR + '/MEAN-AUD-D.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
+            means_file = consts.STATSDIR + '/MEAN-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
             stds_file = consts.STATSDIR + '/STD-AUD-Data.%s-%s.npy' % (consts.VIDEO_INFIX, spk)
 
             if 'M' in normalization_vars:
