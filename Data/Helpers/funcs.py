@@ -13,7 +13,7 @@ def sequence_processor(means, stds, diff_frames, add_channel, downsample):
             prev = wordSeq[:-1]
             next_ = wordSeq[1:]
             wordSeq = next_ - prev
-            origShape[0] -= 1
+            origShape = (origShape[0]-1, origShape[1])
 
         if means is not None:
             wordSeq -= means[speaker]
