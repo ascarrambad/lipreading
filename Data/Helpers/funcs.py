@@ -3,8 +3,11 @@ import numpy as np
 
 from . import consts
 
-def sequence_processor(means, stds, diff_frames, add_channel, downsample):
+def sequence_processor(means, stds, add_channel, downsample, diff_frames, diff_means=None, diff_stds=None):
     def processingFunction(wordSeq, speaker):
+
+        diff_wordSeq = None
+
         # reshape to remain generic
         origShape = wordSeq.shape
         wordSeq.shape = (wordSeq.shape[0], np.prod(wordSeq.shape[1:]))
@@ -12,22 +15,28 @@ def sequence_processor(means, stds, diff_frames, add_channel, downsample):
         if diff_frames:
             prev = wordSeq[:-1]
             next_ = wordSeq[1:]
-            wordSeq = next_ - prev
-            origShape = (origShape[0]-1, origShape[1], origShape[2])
+            diff_wordSeq = next_ - prev
+            diff_origShape = (origShape[0]-1, origShape[1], origShape[2])
 
         if means is not None:
             wordSeq -= means[speaker]
+            if diff_frames: diff_wordSeq -= diff_means[speaker]
         if stds is not None:
             wordSeq /= stds[speaker]
+            if diff_frames: diff_wordSeq /= diff_stds[speaker]
 
         wordSeq.shape = origShape
+        if diff_frames: diff_wordSeq.shape = diff_origShape
 
         if downsample:
             wordSeq = wordSeq[:,::2,::2]
+            if diff_frames: diff_wordSeq = diff_wordSeq[:,::2,::2]
 
         if add_channel:
             wordSeq = wordSeq[...,None]
-        return wordSeq
+            if diff_frames: diff_wordSeq = diff_wordSeq[...,None]
+
+        return wordSeq, diff_wordSeq
 
     return processingFunction
 
