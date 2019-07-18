@@ -44,7 +44,7 @@ class Loader(object):
             seq_proc = funcs.sequence_processor(means, stds, add_channel, downsample, diff_frames, diff_means, diff_stds)
 
             # Load actual data
-            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, verbose)
+            binned_data, index_to_bin_pos, feature_size = self._load_and_bin(seq_data, spk, seq_proc, diff_frames, verbose)
             domain_data[dmn] = Domain(dmn, dbtype, binned_data, index_to_bin_pos)
 
         return domain_data, feature_size
