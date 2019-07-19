@@ -29,8 +29,10 @@ def cfg():
     ### DATA PROCESSING
     VideoNorm = 'MV'
     AddChannel = True
+    DownSample = False
 
     ### TRAINING DATA
+    TruncateRemainder = False
     Shuffle = 1
 
     ### NET SPECS
@@ -70,7 +72,7 @@ def main(
         # Speakers
         SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
         # Data
-        VideoNorm, AddChannel, Shuffle, InitStd,
+        VideoNorm, AddChannel, DownSample, TruncateRemainder, Shuffle, InitStd,
         # NN settings
         MotSpec, CntSpec, TrgSpec,
         # Training settings
@@ -105,18 +107,18 @@ def main(
                               (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
 
     # Create source & target datasets for all domain types
-    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
+    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
     # Adding classification layers
     TrgSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
