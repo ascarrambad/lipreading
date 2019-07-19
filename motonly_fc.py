@@ -49,7 +49,8 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'FC-Trg256'
+    Variant = ''
+    Collection = 'FC-Trg256' + Variant
 
     OutDir = 'Outdir/MotionOnly'
     TensorboardDir = OutDir + '/tensorboard'

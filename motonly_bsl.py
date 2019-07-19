@@ -49,7 +49,8 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'BaselineLike'
+    Variant = ''
+    Collection = 'BaselineLike' + Variant
 
     OutDir = 'Outdir/MotionOnly'
     TensorboardDir = OutDir + '/tensorboard'

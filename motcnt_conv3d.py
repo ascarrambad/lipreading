@@ -53,7 +53,8 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'Conv3D'
+    Variant = ''
+    Collection = 'Conv3D' + Variant
 
     OutDir = 'Outdir/MotCnt'
     TensorboardDir = OutDir + '/tensorboard'
