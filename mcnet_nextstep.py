@@ -30,6 +30,7 @@ def cfg():
     AddChannel = True
 
     ### TRAINING DATA
+    TruncateRemainder = False
     Shuffle = 1
 
     ### NET SPECS
@@ -54,7 +55,8 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'NEXTSTEP'
+    Variant = ''
+    Collection = 'NEXTSTEP' + Variant
 
     OutDir = 'Outdir/MCNet.PreProc'
     TensorboardDir = OutDir + '/tensorboard'
@@ -73,7 +75,7 @@ def main(
         # Speakers
         Speakers, WordsPerSpeaker,
         # Data
-        VideoNorm, AddChannel, Shuffle, InitStd,
+        VideoNorm, AddChannel, TruncateRemainder, Shuffle, InitStd,
         # NN settings
         MotSpec, CntSpec, EncSpec, ResSpec, DecSpec,
         # Training settings
@@ -112,11 +114,11 @@ def main(
     test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
 
     # Create source & target datasets for all domain types
-    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
+    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
+    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
+    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
     # Adding classification layers
     DecSpec += '_*PREDICT!img'
