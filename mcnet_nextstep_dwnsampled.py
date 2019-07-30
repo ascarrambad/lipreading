@@ -160,13 +160,14 @@ def main(
     def feed_builder(epoch, batch, training):
 
         for i in range(1,batch.data.shape[1]-1): # range from diff frame 1 to n-1
+            batch_size = batch.data.shape[0]
             keys = builder.placeholders.values()
-            seq_lens = np.minimum(batch.data_lengths-2, [i]*64) # -2 because we're interested in the second to last position
+            seq_lens = np.minimum(batch.data_lengths-2, [i]*batch_size) # -2 because we're interested in the second to last position
 
             values = [batch.data[:,:i,:,:,:], # all frame diffs until i
                       seq_lens, # length of the sequences
-                      batch.data_opt[np.arange(BatchSize),seq_lens,:,:,:], # current frame min(lengths-1, i)
-                      batch.data_opt[np.arange(BatchSize),seq_lens+1,:,:,:], # frame after min(lengths-1, i)
+                      batch.data_opt[np.arange(batch_size),seq_lens,:,:,:], # current frame min(lengths-1, i)
+                      batch.data_opt[np.arange(batch_size),seq_lens+1,:,:,:], # frame after min(lengths-1, i)
                       training]
 
             yield dict(zip(keys, values))
