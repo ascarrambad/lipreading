@@ -36,7 +36,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ_FC256t'
+    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!0_*LSTM!256_*MASKSEQ_FC256t'
     #
 
     # NET TRAINING
@@ -125,26 +125,18 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification('NET', NetSpec, 'Frames', 'WordTrgs')
+    net = builder.add_specification('NET', NetSpec, 'Frames', 'WordTrgs')
+    net.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
+    net.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
     builder.build_model()
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
-
-    ## Losses dictionary
-    lkeys = ['Wrd']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
@@ -152,8 +144,7 @@ def main(
         keys = builder.placeholders.values()
         values = [batch.data,
                   batch.data_lengths,
-                  batch.data_targets,
-                  training]
+                  batch.data_targets]
 
         return dict(zip(keys, values))
 
@@ -161,7 +152,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=net.accuracy,
+                            eval_losses={'Wrd': net.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],

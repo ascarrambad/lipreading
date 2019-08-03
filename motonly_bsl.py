@@ -36,7 +36,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ_FC128t'
+    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*UNDOFLAT!0_*LSTM!128_*MASKSEQ_FC128t'
     #
 
     # NET TRAINING
@@ -125,26 +125,21 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
+    training = builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_main_specification('NET', NetSpec, 'Frames', 'WordTrgs')
+    net = builder.add_specification('NET', NetSpec, 'Frames', 'WordTrgs')
+    net.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    net.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    net.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
+    net.layers['MASKSEQ-8'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
     builder.build_model()
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
-
-    ## Losses dictionary
-    lkeys = ['Wrd']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
@@ -161,7 +156,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=net.accuracy,
+                            eval_losses={'Wrd': net.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],

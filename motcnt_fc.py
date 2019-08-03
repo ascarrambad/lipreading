@@ -36,7 +36,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    DynSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE_*LSTM!256_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!0_*LSTM!256_*MASKSEQ'
     #
     CntSpec = '*FLATFEAT!2_FC64t_FC128t_FC256t'
     #
@@ -75,7 +75,7 @@ def main(
         # Data
         VideoNorm, AddChannel, DownSample, TruncateRemainder, Shuffle, InitStd,
         # NN settings
-        DynSpec, CntSpec, TrgSpec,
+        MotSpec, CntSpec, TrgSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
@@ -129,29 +129,23 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('DYN', DynSpec, 'Frames', None)
-    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_main_specification('EDC', TrgSpec, ['DYN-MASKSEQ-7/Output', 'CNT-FC-3/Output'], 'WordTrgs')
+    mot = builder.add_specification('MOT', DynSpec, 'Frames', None)
+    mot.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
+    mot.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    builder.build_model(build_order=['DYN','CNT','EDC'])
+    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
+
+    builder.add_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-FC-3/Output'], 'WordTrgs')
+
+    builder.build_model()
 
     # Setup Optimizer, Loss, Accuracy
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
-
-    ## Losses dictionary
-    lkeys = ['Wrd']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
@@ -160,8 +154,7 @@ def main(
         values = [batch.data,
                   batch.data_lengths,
                   batch.data_opt,
-                  batch.data_targets,
-                  training]
+                  batch.data_targets]
 
         return dict(zip(keys, values))
 
@@ -169,7 +162,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=edc.accuracy,
+                            eval_losses={'Wrd': edc.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],
