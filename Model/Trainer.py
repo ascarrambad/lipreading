@@ -6,7 +6,7 @@ from .Helpers import enums
 
 class Trainer(object):
 
-    def __init__(self, epochs, optimizer, accuracy, loss, eval_losses, tensorboard_path=None, model_path=None):
+    def __init__(self, epochs, optimizer, accuracy, eval_losses, tensorboard_path=None, model_path=None):
         super(Trainer, self).__init__()
 
         assert tensorboard_path != ''
