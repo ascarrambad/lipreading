@@ -18,22 +18,34 @@ class Layer(object):
     def __init__(self, graph_name, spec_str, index):
         super(Layer, self).__init__()
 
+        self.graph_name = graph_name
         self.index = index
 
         match = re.match(SPEC, spec_str)
 
         self.special = match.group('special') is '*'
         self.type = match.group('type')
-        self.name = match.group('name').strip('()') if match.group('name') is not None else '{0}-{1}-{2}'.format(graph_name, self.type, index)
+        self.name = '{0}-{1}'.format(match.group('name').strip('()') if match.group('name') is not None else self.type, index)
         self.sublayers = match.group('sublayers').split('-') if not self.special else []
         self.args = match.group('args').split('-') if match.group('args') is not None else []
 
-        self.extra_tensor = None
+        self.extra_params = {}
+
+        if self.type == 'LSTM' or self.type == 'CONVLSTM':
+            self.extra_params['SequenceLengthsTensor'] = None
+        elif self.type == 'MASKSEQ':
+            self.extra_params['MaskIndicesTensor'] = None
+        elif self.type == 'DP':
+            self.extra_params['TrainingStatusTensor'] = None
+        elif self.type == 'GRADFLIP':
+            self.extra_params['LambdaTensor'] = None
+        elif self.type == 'CUSTOM':
+            self.extra_params['CustomFunction'] = lambda x,y: x
 
         self.tensors = []
 
     def build(self, in_tensor, init_std, trg_tensor=None):
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.graph_name + '-' + self.name):
             if type(in_tensor) is list:
                 in_tensor = [tf.identity(t, name='Input-%d'%i) for i,t in enumerate(in_tensor)]
             else:
@@ -42,7 +54,7 @@ class Layer(object):
 
             args = self.args
 
-            if self.extra_tensor is not None:
+            if self.extra_tensor != {}:
                 args = args + [self.extra_tensor]
 
             if trg_tensor is not None:
