@@ -24,30 +24,41 @@ class Builder(object):
         self.init_std = init_std
 
         self.placeholders = {}
-        self.graph_specs = []
+        self._graph_specs = []
+        self._graph_name_idx = {}
 
     def add_placeholder(self, dtype, shape, name):
-        with tf.variable_scope('Inputs/'):
-            plc = tf.placeholder(dtype, shape, name)
-            self.placeholders[name] = plc
-
-    def add_main_specification(self, name, spec_str, input_name, target_name):
-        graph_spec = Graph(name, spec_str, input_name, target_name)
-        self.graph_specs.insert(0, graph_spec)
+        if name not in self.placeholders.keys():
+            with tf.variable_scope('Inputs/'):
+                plc = tf.placeholder(dtype, shape, name)
+                self.placeholders[name] = plc
+                return plc
+        else:
+            raise Exception('Placeholder \'%s\' already exists' % name)
 
     def add_specification(self, name, spec_str, input_name, target_name):
-        graph_spec = Graph(name, spec_str, input_name, target_name)
-        self.graph_specs.append(graph_spec)
+        if name not in self._graph_name_idx.keys():
+            graph_spec = Graph(name, spec_str, input_name, target_name)
+            self._graph_specs.append(graph_spec)
+            self._graph_name_idx[name] = len(self._graph_specs) - 1
+            return graph_spec
+        else:
+            raise Exception('Graph specification \'%s\' already exists' % name)
+
+    def get_specification(self, name):
+        return self._graph_specs[self._graph_name_idx[name]]
+
+    def get_all_specifications(self):
+        return self._graph_specs
 
     def build_model(self, build_order=None):
         if build_order is None:
-            build_order = list(range(len(self.graph_specs)))
+            build_order = list(range(len(self._graph_specs)))
         else:
-            name_idx = {x.name:i for i,x in enumerate(self.graph_specs)}
-            build_order = [name_idx[x] for x in build_order]
+            build_order = [self._graph_name_idx[n] for n in build_order]
 
         for i in build_order:
-            graph = self.graph_specs[i]
+            graph = self._graph_specs[i]
 
             if type(graph.input_name) is list:
                 in_tensor = list(map(lambda x: self._get_tensor(x), graph.input_name))

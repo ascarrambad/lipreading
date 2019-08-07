@@ -1,3 +1,4 @@
+
 import os
 import sys
 
@@ -35,9 +36,9 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!0_*LSTM!256_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!0_*LSTM!256_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*ORESHAPE!2_*LSTM!256_*MASKSEQ'
+    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!2_*LSTM!256_*MASKSEQ'
     #
     TrgSpec = '*CONCAT!1_FC256t'
     #
@@ -52,7 +53,8 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'FC'
+    Variant = ''
+    Collection = 'FC' + Variant
 
     OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
@@ -126,30 +128,26 @@ def main(
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'DiffFrames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('MOT', MotSpec, 'DiffFrames', None)
-    builder.add_specification('CNT', CntSpec, 'Frames', None)
-    builder.add_main_specification('EDC', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
+    mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
+    mot.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
+    mot.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    builder.build_model(build_order=['MOT','CNT','EDC'])
+    cnt = builder.add_specification('CNT', CntSpec, 'CntFrames', None)
+    cnt.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
+    cnt.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    # Setup Optimizer, Loss, Accuracy
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
+
+    builder.build_model()
+
+    # Setup Optimizer
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
-
-    ## Losses dictionary
-    lkeys = ['Wrd']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
@@ -167,7 +165,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=trg.accuracy,
+                            eval_losses={'Wrd': trg.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],

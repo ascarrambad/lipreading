@@ -10,13 +10,20 @@ from ..CustomLayers.GradientReversal import gradient_reversal
 
 # FC(FullyConnected)128t-64t
 def _fullyconnected(in_tensor, num_hidden_units, init_std, activ_func):
+
     assert len(in_tensor.shape) == 2
     assert type(in_tensor.shape.as_list()[-1]) is int
+    assert num_hidden_units > 0
+    assert init_std >= 0
+
+    ############################################################################
 
     in_size = in_tensor.shape.as_list()[-1]
 
     W = _weight_variable([in_size, num_hidden_units], init_std, name='W')
     b = _weight_variable([num_hidden_units], init_std, name='b')
+
+    ############################################################################
 
     out_tensor = tf.matmul(in_tensor, W) + b
     out_tensor = _add_activation_func(out_tensor, activ_func)
@@ -27,12 +34,24 @@ def _fullyconnected(in_tensor, num_hidden_units, init_std, activ_func):
 # in_tensor = [batch_size, height, width, channels]
 def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, depthwise=False):
 
+    assert len(in_tensor.shape) == 4
+    assert out_channels > 0
+    assert init_std >= 0
+
     kernel = int(kernel)
     stride = int(stride)
     depthwise = bool(int(depthwise))
 
+    assert kernel > 0
+    assert stride > 0
+
+    ############################################################################
+
     in_channels = in_tensor.shape.as_list()[-1]
+
     filters = _weight_variable([kernel,kernel,in_channels,out_channels], init_std, name='Filters')
+
+    ############################################################################
 
     if depthwise:
         conv = tf.nn.depthwise_conv2d(input=in_tensor,
@@ -58,14 +77,27 @@ def _conv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1, dep
 # in_tensor = [batch_size, height, width, channels]
 def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, kdepth, stride=1, sdepth=1):
 
+    assert len(in_tensor.shape) == 5
+    assert out_channels > 0
+    assert init_std >= 0
+
     kernel = int(kernel)
-    stride = int(stride)
     kdepth = int(kdepth)
+    stride = int(stride)
     sdepth = int(sdepth)
+
+    assert kernel > 0
+    assert kdepth > 0
+    assert stride > 0
+    assert sdepth > 0
+
+    ############################################################################
 
     in_channels = in_tensor.shape.as_list()[-1]
 
     filters = _weight_variable([kdepth,kernel,kernel,in_channels,out_channels], init_std, name='Filters')
+
+    ############################################################################
 
     conv = tf.nn.conv3d(input=in_tensor,
                         filter=filters,
@@ -82,14 +114,25 @@ def _conv3d(in_tensor, out_channels, init_std, activ_func, kernel, kdepth, strid
 
 def _deconv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1):
 
+    assert len(in_tensor.shape) == 4
+    assert out_channels > 0
+    assert init_std >= 0
+
     kernel = int(kernel)
     stride = int(stride)
 
+    assert kernel > 0
+    assert stride > 0
+
+    ############################################################################
+
     in_shape = in_tensor.shape.as_list()
+    out_shape = tf.concat([[tf.shape(in_tensor)[0]], in_shape[1:-1]+[out_channels]], axis=0, name='OutShape')
     in_channels = in_shape[-1]
+
     filters = _weight_variable([kernel,kernel,out_channels,in_channels], init_std, name='Filters')
 
-    out_shape = tf.concat([[tf.shape(in_tensor)[0]], in_shape[1:-1]+[out_channels]], axis=0, name='OutShape')
+    ############################################################################
 
     deconv = tf.nn.conv2d_transpose(value=in_tensor,
                                     filter=filters,
@@ -119,6 +162,8 @@ def _predict(in_tensor, error, trg_tensor):
     elif error == 'mse' or error == 'img':
         loss = tf.square(in_tensor - trg_tensor, name='MeanSquaredError')
         hits = tf.equal(in_tensor, trg_tensor, name='Hits')
+    else:
+        raise Exception('Error %s not known' % error)
 
     loss = tf.reduce_mean(loss, name='MeanLoss')
 
@@ -146,21 +191,29 @@ def _predict(in_tensor, error, trg_tensor):
 
 # *LSTM!64.64-0
 _lstm_arr = []
-def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm_state_idx=0, seq_len_tensor_name='Inputs/SeqLengths'):
+def _lstm(in_tensor, extra_params, num_hidden_units, out_hidden_state=False, init_type=0, lstm_state_idx=0):
+
+    assert len(in_tensor.shape) >= 2
 
     num_hidden_units = [int(x) for x in num_hidden_units.split('.')]
     out_hidden_state = bool(int(out_hidden_state))
     init_type = int(init_type)
     lstm_state_idx = int(lstm_state_idx)
 
+    assert [x > 0 for x in num_hidden_units]
     assert init_type in range(3)
+    assert lstm_state_idx >= 0
 
     global _lstm_arr
+
+    ############################################################################
 
     cells = [tf.nn.rnn_cell.LSTMCell(num, name='LSTMCell-%d'%num) for num in num_hidden_units]
     multi_cell = tf.nn.rnn_cell.MultiRNNCell(cells)
 
-    seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
+    seq_len = extra_params['SequenceLengthsTensor']
+
+    ############################################################################
 
     if init_type == 0: # default
         outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, dtype=tf.float32)
@@ -175,8 +228,6 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm
     #     state = _lstm_arr[lstm_state_idx]
     #     state = tf.nn.rnn_cell.LSTMStateTuple(in_tensor[1])
     #     outputs_state = tf.nn.dynamic_rnn(multi_cell, in_tensor, sequence_length=seq_len, initial_state=state, dtype=tf.float32)
-    else:
-        assert False
 
     _lstm_arr.append(outputs_state)
 
@@ -185,22 +236,34 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm
     return tf.identity(out_tensor, name='Output')
 
 # *ConvLSTM!2-12
-def _convlstm(in_tensor, out_channels, kernel, out_hidden_state=False, conv_ndims=2, zero_init=False, seq_len_tensor_name='Inputs/SeqLengths'):
+def _convlstm(in_tensor, extra_params, out_channels, kernel, out_hidden_state=False, conv_ndims=2, zero_init=False):
 
-    kernel = int(kernel)
+    assert len(in_tensor.shape) >= 5
+
     out_channels = int(out_channels)
-    conv_ndims = int(conv_ndims)
+    kernel = int(kernel)
     out_hidden_state = bool(int(out_hidden_state))
+    conv_ndims = int(conv_ndims)
     zero_init = bool(int(zero_init))
 
+    assert out_channels > 0
+    assert kernel >= 2
+    assert conv_ndims >= 2
+
+    ############################################################################
+
     in_shape = in_tensor.shape.as_list()[2:] # shape of tensor excluding batch_size as API required AND sequence_length
+
+    ############################################################################
 
     cell = tf.contrib.rnn.ConvLSTMCell(conv_ndims=conv_ndims,
                                        input_shape=in_shape,
                                        output_channels=out_channels,
                                        kernel_shape=[kernel]*conv_ndims)
 
-    seq_len = tf.get_default_graph().get_tensor_by_name(seq_len_tensor_name + ':0')
+    seq_len = extra_params['SequenceLengthsTensor']
+
+    ############################################################################
 
     if zero_init:
         batch_size = in_tensor.shape[0]
@@ -214,54 +277,59 @@ def _convlstm(in_tensor, out_channels, kernel, out_hidden_state=False, conv_ndim
     return tf.identity(out_tensor, name='Output')
 
 # *MASKSEQ
-def _mask_seq(in_tensor, mask_tensor_name='Inputs/SeqLengths'):
+def _mask_seq(in_tensor, extra_params):
 
-    seq_idx = tf.identity(tf.get_default_graph().get_tensor_by_name(mask_tensor_name + ':0') - 1, name='SeqIndices')
+    assert len(in_tensor.shape) >= 2
+    assert extra_params['MaskIndicesTensor'] != None
+
+    ############################################################################
+
+    seq_idx = extra_params['MaskIndicesTensor']
+
+    ############################################################################
+
     batch_idx = tf.range(tf.shape(seq_idx)[0], dtype=tf.int32, name='BatchIndices')
 
     idx = tf.stack([batch_idx, seq_idx], axis=1, name='Indices')
 
     return tf.gather_nd(params=in_tensor, indices=idx, name='Output')
 
-# *ADVSPLIT
-def _adversarial_split(in_tensor, at_index=64, train_tensor_name='Inputs/Training'):
-
-    at_index = int(at_index)
-
-    train_cond = tf.get_default_graph().get_tensor_by_name(train_tensor_name + ':0')
-
-    all_features = lambda: in_tensor
-    source_features = lambda: in_tensor[:at_index,]
-
-    out_tensor = tf.cond(train_cond, source_features, all_features)
-
-    return tf.identity(out_tensor, name='Output')
-
 # *GRADFLIP
-def _gradient_reversal(in_tensor, lambda_tensor_name='Inputs/Lambda'):
+def _gradient_reversal(in_tensor, extra_params):
 
-    lambda_tensor = tf.get_default_graph().get_tensor_by_name(lambda_tensor_name + ':0')
+    assert extra_params['LambdaTensor'] != None
+
+    ############################################################################
+
+    lambda_tensor = extra_params['LambdaTensor']
+
+    ############################################################################
 
     out_tensor = gradient_reversal(in_tensor, lambda_tensor)
 
     return tf.identity(out_tensor, name='Output')
 
 # *FLATFEAT!3
-_orig_shape =[] # Shape to be recovered by orig_shape layer
-def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
+_orig_shape = [] # Shape to be recovered by orig_shape layer
+def _flat_features(in_tensor, num_to_flat, reversed_=False):
 
     num_to_flat = int(num_to_flat)
+
+    assert len(in_tensor.shape) - num_to_flat >= 1
+
     reversed_ = bool(int(reversed_))
 
     global _orig_shape
 
-    assert len(in_tensor.shape) - num_to_flat >= 1
-
-    _orig_shape.append((reversed_, tf.identity(input=tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:],
-                                               name='RemainingShape')))
+    ############################################################################
 
     current_shape = in_tensor.shape.as_list()
     current_shape = [-1 if x is None else x for x in current_shape]
+
+    ############################################################################
+
+    _orig_shape.append((reversed_, tf.identity(input=tf.shape(in_tensor)[:num_to_flat] if reversed_ else tf.shape(in_tensor)[-num_to_flat:],
+                                               name='RemainingShape')))
 
     if not reversed_:
         flat_feat = np.prod(current_shape[-num_to_flat:])
@@ -274,15 +342,23 @@ def _flatfeatures(in_tensor, num_to_flat, reversed_=False):
                       shape=new_shape,
                       name='Output')
 
-# *ORESHAPE
-def _original_reshape(in_tensor, index=0):
+# *UNDOFLAT
+def _undo_flat_features(in_tensor, index=0):
 
     index = int(index)
+
+    assert index >= 0
+
     global _orig_shape
-    assert _orig_shape is not None
+
+    assert len(_orig_shape) > 0
+
+    ############################################################################
 
     reversed_ = _orig_shape[index][0]
     flat_feat = _orig_shape[index][1]
+
+    ############################################################################
 
     if not reversed_:
         new_shape = tf.concat([tf.shape(in_tensor)[:-1], flat_feat], axis=0, name='OrigShape')
@@ -296,15 +372,22 @@ def _original_reshape(in_tensor, index=0):
     return out_tensor
 
 # *DP!0.5
-def _dropout(in_tensor, keep_prob=0.5, train_tensor_name='Inputs/Training'):
+def _dropout(in_tensor, extra_params, keep_prob=0.5):
 
     keep_prob = float(keep_prob)
 
-    train_cond = tf.get_default_graph().get_tensor_by_name(train_tensor_name + ':0')
+    assert keep_prob > 0 and keep_prob <= 1
+    assert extra_params['TrainingStatusTensor'] != None
+
+    ############################################################################
+
+    train_cond = extra_params['TrainingStatusTensor']
 
     train_prob = lambda: keep_prob
     test_prob = lambda: 1.0
     keep_prob = tf.cond(train_cond, train_prob, test_prob)
+
+    ############################################################################
 
     dropout = tf.nn.dropout(x=in_tensor, keep_prob=keep_prob)
 
@@ -316,6 +399,11 @@ def _max_pool2d(in_tensor, kernel, stride):
     kernel = int(kernel)
     stride = int(stride)
 
+    assert kernel > 0
+    assert stride > 0
+
+    ############################################################################
+
     return tf.nn.max_pool(value=in_tensor,
                           ksize=[1,kernel,kernel, 1],
                           strides=[1,stride,stride,1],
@@ -323,14 +411,23 @@ def _max_pool2d(in_tensor, kernel, stride):
                           name='Output')
 
 # *MPTD!2-2
-def _max_pool3d(in_tensor, kernel, stride):
+def _max_pool3d(in_tensor, kernel, kdepth, stride=1, sdepth=1):
 
     kernel = int(kernel)
+    kdepth = int(kdepth)
     stride = int(stride)
+    sdepth = int(sdepth)
+
+    assert kernel > 0
+    assert kdepth > 0
+    assert stride > 0
+    assert sdepth > 0
+
+    ############################################################################
 
     return tf.nn.max_pool3d(input=in_tensor,
-                            ksize=[1,kernel,kernel,kernel, 1],
-                            strides=[1,stride,stride,stride,1],
+                            ksize=[1,kdepth,kernel,kernel, 1],
+                            strides=[1,sdepth,stride,stride,1],
                             padding='SAME',
                             name='Output')
 
@@ -339,9 +436,15 @@ def _unpooling(in_tensor, multiplier):
 
     multiplier = int(multiplier)
 
+    assert multiplier > 0
+
+    ############################################################################
+
     in_shape = in_tensor.shape.as_list()
     out_size = [x*multiplier for x in  in_shape[1:3]]
     out_size = tf.identity(out_size, name='OutSize')
+
+    ############################################################################
 
     return tf.image.resize_bilinear(images=in_tensor,
                                     size=out_size,
@@ -352,6 +455,10 @@ def _concatenate(in_tensors, axis):
 
     axis = int(axis)
 
+    assert axis >= 0
+
+    ############################################################################
+
     return tf.concat(in_tensors, axis=axis, name='Output')
 
 # *SPLIT!1
@@ -360,10 +467,29 @@ def _split(in_tensor, axis, splits_num=2):
     axis = int(axis)
     splits_num = int(splits_num)
 
+    assert axis >= 0
+    assert splits_num >= 2
+
+    ############################################################################
+
     splits = tf.split(value=in_tensors,
                       num_or_size_splits=splits_num,
                       axis=axis)
+
     return [tf.identity(x, name='Output-%d'%i) for i,x in enumerate(splits)]
+
+# *STOPGRAD
+def _stop_gradient(in_tensor):
+    return tf.stop_gradient(in_tensor,
+                            name='Output')
+
+# *CUSTOM
+def _custom(in_tensor, *args):
+    assert args[-1]['CustomFunction'] != None
+
+    out_tensor = args[-1]['CustomFunction'](in_tensor, *args[:-1])
+
+    return tf.identity(out_tensor, name='Output')
 
 # SOBEL
 def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
@@ -405,11 +531,6 @@ def _scaler(in_tensor):
     return tf.div(x=tf.subtract(in_tensor, min_),
                   y=tf.subtract(tf.reduce_max(in_tensor), min_),
                   name='Output')
-
-# *STOPGRAD
-def _stop_gradient(in_tensor):
-    return tf.stop_gradient(in_tensor,
-                            name='Output')
 
 # *RESGEN
 _resids = []
@@ -467,20 +588,20 @@ layer_type = {
     'LSTM': _lstm,
     'CONVLSTM': _convlstm,
     'MASKSEQ': _mask_seq,
-    'ADVSPLIT': _adversarial_split,
     'GRADFLIP': _gradient_reversal,
-    'FLATFEAT': _flatfeatures,
-    'ORESHAPE': _original_reshape,
+    'FLATFEAT': _flat_features,
+    'UNDOFLAT': _undo_flat_features,
     'DP': _dropout,
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
     'UNP': _unpooling,
     'CONCAT': _concatenate,
     'SPLIT': _split,
+    'STOPGRAD': _stop_gradient,
+    'CUSTOM': _custom,
     'SOBEL': _sobel_edges,
     'DIFF': _diff_frames,
     'SCALE': _scaler,
-    'STOPGRAD': _stop_gradient,
     'RESGEN': _residual_gen,
     'RESGET': _residual_get,
 }
