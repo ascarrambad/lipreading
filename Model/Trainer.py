@@ -12,8 +12,7 @@ class Trainer(object):
         assert tensorboard_path != ''
 
         self.epochs = epochs
-        self.optimizer = optimizer
-        self.optimizer = self.optimizer.minimize(loss)
+        self.optimizer = optimizer.minimize(list(eval_losses.values())[0])
 
         self.accuracy = accuracy
         self.eval_losses = eval_losses
