@@ -54,8 +54,8 @@ class Layer(object):
 
             args = self.args
 
-            if self.extra_tensor != {}:
-                args = args + [self.extra_tensor]
+            if self.extra_params != {}:
+                args = [self.extra_params] + args
 
             if trg_tensor is not None:
                 args = args + [trg_tensor]

@@ -176,7 +176,7 @@ def _predict(in_tensor, error, trg_tensor):
 
 # *LSTM!64.64-0
 _lstm_arr = []
-def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm_state_idx=0, extra_params):
+def _lstm(in_tensor, extra_params, num_hidden_units, out_hidden_state=False, init_type=0, lstm_state_idx=0):
 
     assert len(in_tensor.shape) >= 2
 
@@ -221,7 +221,7 @@ def _lstm(in_tensor, num_hidden_units, out_hidden_state=False, init_type=0, lstm
     return tf.identity(out_tensor, name='Output')
 
 # *ConvLSTM!2-12
-def _convlstm(in_tensor, out_channels, kernel, out_hidden_state=False, conv_ndims=2, zero_init=False, extra_params):
+def _convlstm(in_tensor, extra_params, out_channels, kernel, out_hidden_state=False, conv_ndims=2, zero_init=False):
 
     assert len(in_tensor.shape) >= 5
 
@@ -298,9 +298,10 @@ def _gradient_reversal(in_tensor, extra_params):
 _orig_shape = [] # Shape to be recovered by orig_shape layer
 def _flat_features(in_tensor, num_to_flat, reversed_=False):
 
+    num_to_flat = int(num_to_flat)
+
     assert len(in_tensor.shape) - num_to_flat >= 1
 
-    num_to_flat = int(num_to_flat)
     reversed_ = bool(int(reversed_))
 
     global _orig_shape
@@ -356,7 +357,7 @@ def _undo_flat_features(in_tensor, index=0):
     return out_tensor
 
 # *DP!0.5
-def _dropout(in_tensor, keep_prob=0.5, extra_params):
+def _dropout(in_tensor, extra_params, keep_prob=0.5):
 
     keep_prob = float(keep_prob)
 
@@ -395,7 +396,7 @@ def _max_pool2d(in_tensor, kernel, stride):
                           name='Output')
 
 # *MPTD!2-2
-def _max_pool3d(in_tensor, kernel, kdepth, stride=1, sdepth=1)):
+def _max_pool3d(in_tensor, kernel, kdepth, stride=1, sdepth=1):
 
     kernel = int(kernel)
     kdepth = int(kdepth)
