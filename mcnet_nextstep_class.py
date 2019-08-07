@@ -21,8 +21,11 @@ ex = Experiment('LipR.MCNet.Class')
 @ex.config
 def cfg():
 
+    #### PRETRAINING PARAMS
+    TrainedModelSeed = 650237723
+    MotInputTensor = 'MOT-CONV-3'
+
     #### DATA
-    TrainedModelSeed = 650237723 #800430375
     AllSpeakers = 's5_s8'
     (SourceSpeakers,TargetSpeakers) = AllSpeakers.split('_')
     WordsPerSpeaker = -1
@@ -30,28 +33,32 @@ def cfg():
     ### DATA PROCESSING
     VideoNorm = 'MV'
     AddChannel = True
+    DownSample = False
 
     ### TRAINING DATA
+    TruncateRemainder = False
     Shuffle = 1
 
     ### NET SPECS
     #
-    MotTSpec = '*STOPGRAD_*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*ORESHAPE_*LSTM!128_*MASKSEQ'
-    CntTSpec = '*STOPGRAD_*FLATFEAT!3_FC128t'
+    MotTSpec = '*STOPGRAD_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*RESHAPE_*LSTM!128_*MASKSEQ'
+    CntTSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*ORESHAPE!1_*LSTM!128_*MASKSEQ'
     TrgSpec = '*CONCAT!1_FC128t'
     #
 
     # NET TRAINING
     MaxEpochs = 200
     BatchSize = 64
-    LearnRate = 0.0001
+    LearnRate = 0.0009
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'ACCURACY'
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Collection = 'NEXTSTEP'
+    Variant = ''
+    Collection = 'NEXTSTEP' + Variant
+
 
     OutDir = 'Outdir/MCNet.Class'
     TensorboardDir = None
@@ -69,10 +76,12 @@ def cfg():
 
 @ex.automain
 def main(
+        #PreProc
+        TrainedModelSeed,  MotInputTensor,
         # Speakers
-        TrainedModelSeed, SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
+        SourceSpeakers, TargetSpeakers, WordsPerSpeaker,
         # Data
-        VideoNorm, AddChannel, Shuffle, InitStd,
+        VideoNorm, AddChannel, DownSample, TruncateRemainder, Shuffle, InitStd,
         # NN settings
         MotTSpec, CntTSpec, TrgSpec,
         # Training settings
@@ -107,18 +116,18 @@ def main(
                               (Data.DomainType.TARGET, TargetSpeakers))
 
     # Load data
-    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel)
-    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel)
+    train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
+    valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
+    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
 
     # Create source & target datasets for all domain types
-    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
+    train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, Shuffle)
+    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
     # Adding classification layers
     TrgSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
@@ -130,11 +139,12 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntTFrames')
 
     # Create network
-    builder.add_specification('MOTT', MotTSpec, 'DYN-ORESHAPE-7/Output', None)
-    builder.add_specification('CNTT', CntTSpec, 'CNT-MP-9/Output', None)
-    builder.add_main_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-9/Output', 'CNTT-FLATFEAT-1/Output'], 'WordTrgs')
+    builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
+    builder.add_specification('CNTT', CntTSpec, 'CntTFrames', None)
+    builder.add_main_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'WordTrgs')
     builder.build_model(build_order=['MOTT', 'CNTT', 'TRG'])
 
     # Setup Optimizer, Loss, Accuracy
@@ -152,12 +162,12 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        keys = [v for k,v in builder.placeholders.items() if k != 'FrameTrgs']
+        keys = [v for k,v in builder.placeholders.items() if k != 'FrameTrgs' and k != 'LastFrame']
         values = [batch.data,
                   batch.data_lengths,
-                  batch.data_opt[np.arange(BatchSize),batch.data_lengths-1,:,:,:],
                   training,
-                  batch.data_targets]
+                  batch.data_targets,
+                  batch.data_opt]
 
         return dict(zip(keys, values))
 
