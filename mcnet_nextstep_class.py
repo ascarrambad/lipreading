@@ -138,9 +138,9 @@ def main(
     restorer = builder.restore_model('Outdir/MCNet.PreProc/model%d/' % TrainedModelSeed)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntTFrames')
+    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
     seq_lens = builder.placeholders['SeqLengths']
+    training = builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
     mott = builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
@@ -153,7 +153,7 @@ def main(
     cntt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
     cntt.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
 
-    trg = builder.add_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'WordTrgs')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'TrgWords')
     builder.build_model()
 
     # Setup Optimizer
@@ -162,12 +162,12 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames' and k != 'CntFrames']
+        keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames']
         values = [batch.data,
+                  batch.data_opt,
                   batch.data_lengths,
-                  training,
                   batch.data_targets,
-                  batch.data_opt]
+                  training]
 
         return dict(zip(keys, values))
 

@@ -129,9 +129,9 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
-    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
 
     # Create network
     mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
@@ -154,10 +154,9 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths,
                   batch.data_opt,
                   batch.data_targets,
-                  training]
+                  batch.data_lengths]
 
         return dict(zip(keys, values))
 

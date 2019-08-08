@@ -125,8 +125,8 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
-    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     training = builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
@@ -146,8 +146,8 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths,
                   batch.data_targets,
+                  batch.data_lengths,
                   training]
 
         return dict(zip(keys, values))

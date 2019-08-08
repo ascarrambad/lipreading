@@ -36,11 +36,11 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    MotSpec = 'CONVTD8r!3-3_*MPTD!2-2_CONVTD16r!5-3_*MPTD!2-2_CONVTD32r!5-3_*MPTD!2-2_*CONVLSTM!32-5_*MASKSEQ'
+    MotSpec = 'CONVTD32r!5-2_*MPTD!2-1-2_CONVTD64r!5-2_*MPTD!2-1-2_*CONVLSTM!64-5_*MASKSEQ'
     #
-    CntSpec = 'CONV8r!3_*MP!2-2_CONV16r!5_*MP!2-2_CONV32r!5_*MP!2-2'
+    CntSpec = 'CONV32r!5_*MP!2-2_CONV32r!5_*MP!2-2_CONV64r!5'
     #
-    TrgSpec = '*CONCAT!3_*FLATFEAT!3_FC128t'
+    TrgSpec = '*CONCAT!3_*FLATFEAT!3_FC256t'
     #
 
     # NET TRAINING
@@ -62,7 +62,7 @@ def cfg():
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_DualSeq', collection=Collection))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MotCnt', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -129,9 +129,9 @@ def main(
 
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
-    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'CntFrame')
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
 
     # Create network
     mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
@@ -140,7 +140,7 @@ def main(
 
     builder.add_specification('CNT', CntSpec, 'CntFrame', None)
 
-    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MP-5/Output'], 'TrgWords')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-5/Output', 'CNT-CONV-4/Output'], 'TrgWords')
 
     builder.build_model()
 
@@ -153,9 +153,9 @@ def main(
 
         keys = builder.placeholders.values()
         values = [batch.data,
-                  batch.data_lengths,
                   batch.data[np.arange(batch_size),batch.data_lengths-1],
-                  batch.data_targets]
+                  batch.data_targets,
+                  batch.data_lengths]
 
         return dict(zip(keys, values))
 
