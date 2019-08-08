@@ -485,11 +485,9 @@ def _stop_gradient(in_tensor):
 
 # *CUSTOM
 def _custom(in_tensor, *args):
-    assert args[-1]['CustomFunction'] != None
+    assert args[0]['CustomFunction'] != None
 
-    out_tensor = args[-1]['CustomFunction'](in_tensor, *args[:-1])
-
-    return tf.identity(out_tensor, name='Output')
+    return args[0]['CustomFunction'](in_tensor, *args[1:])
 
 # SOBEL
 def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
