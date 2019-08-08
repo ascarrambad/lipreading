@@ -108,9 +108,22 @@ class Set(object):
 
         padded_array = funcs.pad_nparrays(paddings, batch_dict['data'])
 
+        # OPTIONALLY ENABLED
+        if not any(x is None for x in batch_dict['data_opt']):
+            max_seq_len = max([seq.shape[0] for seq in batch_dict['data_opt']])
+
+            paddings = [[0, max_seq_len-x.shape[0]] for x in batch_dict['data_opt']]
+            paddings = [[x] + [[0, 0]] * (len(self.data_shape)-2) for x in paddings] # Adding no pad for feature dimensions in data
+
+            padded_array2 = funcs.pad_nparrays(paddings, batch_dict['data_opt'])
+
         # Numpy conversion
         lists = list(batch_dict.values())
         lists[0] = padded_array
+
+        # OPTIONALLY ENABLED
+        if not any(x is None for x in batch_dict['data_opt']):
+            lists[1] = padded_array2
 
         numpy_data = [np.array(arr) for arr in lists]
 

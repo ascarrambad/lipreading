@@ -153,7 +153,6 @@ def _deconv2d(in_tensor, out_channels, init_std, activ_func, kernel, stride=1):
 
 # *PREDICT!mse
 def _predict(in_tensor, error, trg_tensor):
-
     if error == 'sce':
         loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=trg_tensor,
                                                           logits=in_tensor,
@@ -470,11 +469,9 @@ def _stop_gradient(in_tensor):
 
 # *CUSTOM
 def _custom(in_tensor, *args):
-    assert args[-1]['CustomFunction'] != None
+    assert args[0]['CustomFunction'] != None
 
-    out_tensor = args[-1]['CustomFunction'](in_tensor, *args[:-1])
-
-    return tf.identity(out_tensor, name='Output')
+    return args[0]['CustomFunction'](in_tensor, *args[1:])
 
 # SOBEL
 def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
@@ -527,12 +524,6 @@ def _residual_gen(in_tensors, axis):
     input_dyn = in_tensors[:n_layers]
     input_cont = in_tensors[n_layers:]
 
-    for l in range(n_layers):
-        with tf.variable_scope('ORESHAPE%d'%l):
-            input_dyn[l] = _original_reshape(input_dyn[l], index=0)
-        with tf.variable_scope('MASKSEQ%d'%l):
-            input_dyn[l] = _mask_seq(input_dyn[l])
-
     global _resids
 
     for l in range(n_layers):
@@ -543,6 +534,7 @@ def _residual_gen(in_tensors, axis):
             res1 = _conv2d(input_, out_dim, 0.1, 'r', 3)
         with tf.variable_scope('CONV%d_2'%l):
             res2 = _conv2d(res1, out_dim, 0.1, 'i', 3)
+
         _resids.append(res2)
 
     return _resids
@@ -610,4 +602,3 @@ def _weight_variable(shape, init_std, name, validate_shape=True):
     initial = tf.truncated_normal(shape, stddev=init_std, name='TruncatedNormal')
     var = tf.get_variable(initializer=initial, validate_shape=validate_shape, name=name)
     return var
-

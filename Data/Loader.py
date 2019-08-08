@@ -163,10 +163,13 @@ class Loader(object):
 
                 # Collect data item [key = seqKey + ':' + word]
                 if diff_frames:
-                    data = diff_sequence[fromFrame:fromFrame + seq_length]
+                    if fromFrame > 0:
+                        data = diff_sequence[fromFrame - 1:fromFrame + seq_length - 1]
+                    else:
+                        data = np.concatenate((np.zeros((1,) + diff_sequence.shape[1:], dtype=np.float32), diff_sequence[fromFrame:fromFrame + seq_length - 1]))
                 else:
                     data = sequence[fromFrame:fromFrame + seq_length]
-                data_opt = sequence[fromFrame + seq_length - 1] if diff_frames else None
+                data_opt = sequence[fromFrame:fromFrame + seq_length] if diff_frames else None
                 data_length = np.array(seq_length)
                 data_target = encoding.word_one_hot(word)
                 domain_target = encoding.speaker_one_hot(speaker)
