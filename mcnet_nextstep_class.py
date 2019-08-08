@@ -140,29 +140,29 @@ def main(
     # Adding placeholders for data
     builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntTFrames')
+    seq_lens = builder.placeholders['SeqLengths']
 
     # Create network
-    builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
-    builder.add_specification('CNTT', CntTSpec, 'CntTFrames', None)
-    builder.add_main_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'WordTrgs')
-    builder.build_model(build_order=['MOTT', 'CNTT', 'TRG'])
+    mott = builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
+    mott.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    mott.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    mott.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
 
-    # Setup Optimizer, Loss, Accuracy
+    cntt = builder.add_specification('CNTT', CntTSpec, 'CntTFrames', None)
+    cntt.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    cntt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    cntt.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
+
+    trg = builder.add_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'WordTrgs')
+    builder.build_model()
+
+    # Setup Optimizer
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [builder.graph_specs[0].loss]
-
-    ## Losses dictionary
-    lkeys = ['Loss']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        keys = [v for k,v in builder.placeholders.items() if k != 'FrameTrgs' and k != 'LastFrame']
+        keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames' and k != 'CntFrames']
         values = [batch.data,
                   batch.data_lengths,
                   training,
@@ -175,7 +175,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=trg.accuracy,
+                            eval_losses={'Wrd': trg.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
 
     # Restore Parameters
