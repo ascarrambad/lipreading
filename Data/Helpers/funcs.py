@@ -19,6 +19,9 @@ def sequence_processor(means, stds, add_channel, downsample, diff_frames, diff_m
 
         wordSeq.shape = origShape
 
+        if downsample:
+            wordSeq = wordSeq[:,::2,::2]
+
         if add_channel:
             wordSeq = wordSeq[...,None]
 
