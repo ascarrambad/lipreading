@@ -12,29 +12,23 @@ def sequence_processor(means, stds, add_channel, downsample, diff_frames, diff_m
         origShape = wordSeq.shape
         wordSeq.shape = (wordSeq.shape[0], np.prod(wordSeq.shape[1:]))
 
+        if means is not None:
+            wordSeq -= means[speaker]
+        if stds is not None:
+            wordSeq /= stds[speaker]
+
+        wordSeq.shape = origShape
+
+        if downsample:
+            wordSeq = wordSeq[:,::2,::2]
+
+        if add_channel:
+            wordSeq = wordSeq[...,None]
+
         if diff_frames:
             prev = wordSeq[:-1]
             next_ = wordSeq[1:]
             diff_wordSeq = next_ - prev
-            diff_origShape = (origShape[0]-1, origShape[1], origShape[2])
-
-        if means is not None:
-            wordSeq -= means[speaker]
-            if diff_frames: diff_wordSeq -= diff_means[speaker]
-        if stds is not None:
-            wordSeq /= stds[speaker]
-            if diff_frames: diff_wordSeq /= diff_stds[speaker]
-
-        wordSeq.shape = origShape
-        if diff_frames: diff_wordSeq.shape = diff_origShape
-
-        if downsample:
-            wordSeq = wordSeq[:,::2,::2]
-            if diff_frames: diff_wordSeq = diff_wordSeq[:,::2,::2]
-
-        if add_channel:
-            wordSeq = wordSeq[...,None]
-            if diff_frames: diff_wordSeq = diff_wordSeq[...,None]
 
         return wordSeq, diff_wordSeq
 
