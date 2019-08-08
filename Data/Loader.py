@@ -163,7 +163,10 @@ class Loader(object):
 
                 # Collect data item [key = seqKey + ':' + word]
                 if diff_frames:
-                    data = diff_sequence[fromFrame:fromFrame + seq_length]
+                    if fromFrame > 0:
+                        data = diff_sequence[fromFrame - 1:fromFrame + seq_length - 1]
+                    else:
+                        data = np.concatenate((np.zeros((1,) + diff_sequence.shape[1:], dtype=np.float32), diff_sequence[fromFrame:fromFrame + seq_length - 1]))
                 else:
                     data = sequence[fromFrame:fromFrame + seq_length]
                 data_opt = sequence[fromFrame:fromFrame + seq_length] if diff_frames else None
