@@ -131,7 +131,7 @@ def main(
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
     seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
     builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
+    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
 
     # Create network
     mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
@@ -142,7 +142,7 @@ def main(
     cnt.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
     cnt.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'WordTrgs')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-7/Output', 'CNT-MASKSEQ-7/Output'], 'TrgWords')
 
     builder.build_model()
 

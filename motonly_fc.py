@@ -36,7 +36,7 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    NetSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!0_*LSTM!256_*MASKSEQ_FC256t'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC64t_FC128t_FC256t_*UNDOFLAT!0_*LSTM!256_*MASKSEQ_FC256t'
     #
 
     # NET TRAINING
@@ -71,7 +71,7 @@ def main(
         # Data
         VideoNorm, AddChannel, DownSample, TruncateRemainder, Shuffle, InitStd,
         # NN settings
-        NetSpec,
+        MotSpec,
         # Training settings
         BatchSize, LearnRate, MaxEpochs, EarlyStoppingCondition, EarlyStoppingValue, EarlyStoppingPatience,
         # Extra settings
@@ -118,20 +118,20 @@ def main(
     test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
     # Adding classification layers
-    NetSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
+    MotSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
 
     # Model Builder
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
     seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
+    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
 
     # Create network
-    net = builder.add_specification('NET', NetSpec, 'Frames', 'WordTrgs')
-    net.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
-    net.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
+    mot = builder.add_specification('MOT', MotSpec, 'Frames', 'TrgWords')
+    mot.layers['LSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
+    mot.layers['MASKSEQ-7'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
     builder.build_model()
 
@@ -154,8 +154,8 @@ def main(
 
     trainer = Model.Trainer(epochs=MaxEpochs,
                             optimizer=optimizer,
-                            accuracy=net.accuracy,
-                            eval_losses={'Wrd': net.loss},
+                            accuracy=mot.accuracy,
+                            eval_losses={'Wrd': mot.loss},
                             tensorboard_path=TensorboardDir,
                             model_path=ModelDir)
     trainer.init_session()

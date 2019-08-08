@@ -128,19 +128,19 @@ def main(
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
     seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
-    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
+    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'CntFrame')
+    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
 
     # Create network
-    mot = builder.add_specification('MOT', MotSpec, 'Frames', None)
+    mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
     mot.layers['CONVLSTM-8'].extra_params['SequenceLengthsTensor'] = seq_lens
     mot.layers['MASKSEQ-9'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
+    builder.add_specification('CNT', CntSpec, 'CntFrame', None)
 
-    edc = builder.add_specification('EDC', TrgSpec, ['MOT-MASKSEQ-9/Output', 'CNT-MP-9/Output'], 'WordTrgs')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-MASKSEQ-9/Output', 'CNT-MP-9/Output'], 'TrgWords')
 
     builder.build_model()
 
@@ -149,11 +149,12 @@ def main(
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
+        batch_size = batch.data.shape[0]
 
         keys = builder.placeholders.values()
         values = [batch.data,
                   batch.data_lengths,
-                  batch.data_opt,
+                  batch.data[np.arange(batch_size),batch.data_lengths-1],
                   batch.data_targets]
 
         return dict(zip(keys, values))
@@ -164,8 +165,8 @@ def main(
 
     trainer = Model.Trainer(epochs=MaxEpochs,
                             optimizer=optimizer,
-                            accuracy=edc.accuracy,
-                            eval_losses={'Wrd': edc.loss},
+                            accuracy=trg.accuracy,
+                            eval_losses={'Wrd': trg.loss},
                             tensorboard_path=TensorboardDir,
                             model_path=ModelDir)
     trainer.init_session()
