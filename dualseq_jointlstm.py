@@ -17,7 +17,7 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('LipR.JointSeq')
+ex = Experiment('LipR.DualSeq')
 
 @ex.config
 def cfg():
@@ -55,15 +55,15 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'BaselineLike' + Variant
+    Collection = 'JointLSTM' + Variant
 
-    OutDir = 'Outdir/JointSeq'
+    OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
     ModelDir = OutDir + '/model'
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_JointSeq', collection=Collection))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_DualSeq_Valid', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -111,7 +111,6 @@ def main(
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
     valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
@@ -119,8 +118,8 @@ def main(
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
     valid_target_set = Data.Set(valid_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
-    test_target_set = Data.Set(test_data[Data.DomainType.TARGET], BatchSize, TruncateRemainder, Shuffle)
+    # Memory cleanup
+    del data_loader, train_data, valid_data
 
     # Adding classification layers
     TrgSpec += '_FC{0}i_*PREDICT!sce'.format(enc.word_classes_count())
@@ -191,11 +190,11 @@ def main(
                                    stopping_patience=EarlyStoppingPatience,
                                    feed_builder=feed_builder)
 
-    test_result = trainer.test(test_sets=[test_source_set, test_target_set],
+    test_result = trainer.test(test_sets=[valid_source_set, valid_target_set],
                                feed_builder=feed_builder,
                                batched=True)
 
     if DBPath != None:
-        test_result = list(test_result[Data.SetType.TEST].values())
-        return [best_e, best_v], list(test_result[0]), list(test_result[1])
+        test_result = list(test_result[Data.SetType.VALID].values())
+        return best_e, list(test_result[0]), list(test_result[1])
 

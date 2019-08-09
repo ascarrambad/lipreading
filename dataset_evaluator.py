@@ -86,8 +86,8 @@ def main(
     # Create source & target datasets for all domain types
     datasets = [Data.Set(data[Data.DomainType(i)], BatchSize, TruncateRemainder, Shuffle) for i in range(len(dmn_spk))]
 
-    del data_loader
-    del data
+    # Memory cleanup
+    del data_loader, data
 
     # Model Builder
     builder = Model.Builder(init_std=0.1)
@@ -146,4 +146,4 @@ def main(
 
     if DBPath != None:
         test_result = list(test_result[Data.SetType(ValidOrTest+1)].values())
-        return list(test_result[0]), list(test_result[1])
+        return best_e, list(test_result[0]), list(test_result[1])

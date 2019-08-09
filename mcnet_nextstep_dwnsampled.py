@@ -66,7 +66,7 @@ def cfg():
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc', collection=Collection))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc_Valid', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -113,14 +113,13 @@ def main(
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel, downsample=True)
     valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel, downsample=True)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel, downsample=True)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
-
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    # Memory cleanup
+    del data_loader, train_data, valid_data
 
     # Adding classification layers
     DecSpec += '_*CUSTOM(PREDICT)'
@@ -199,10 +198,10 @@ def main(
                                    stopping_patience=EarlyStoppingPatience,
                                    feed_builder=feed_builder)
 
-    test_result = trainer.test(test_sets=[test_source_set],
+    test_result = trainer.test(test_sets=[valid_source_set],
                                feed_builder=feed_builder,
                                batched=True)
 
     if DBPath != None:
-        test_result = list(test_result[Data.SetType.TEST].values())
-        return [best_e, best_v], list(test_result[0])
+        test_result = list(test_result[Data.SetType.VALID].values())
+        return return best_e, list(test_result[0][:-1])
