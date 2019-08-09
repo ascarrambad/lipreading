@@ -7,8 +7,8 @@ import pickle
 data_dir = '/home/mwand/projects/AudioVisual/GRID-old/Corpus/%(spk)s'
 spk_file = '%(spk)s.Data.NewMouths-Grayscale-80x40-Type1.pickle'
 
-means_file = '/home/rivama/projects/AdvRecognizer/DiffStats/means-s%(spk)s.npy'
-stds_file = '/home/rivama/projects/AdvRecognizer/DiffStats/stds-s%(spk)s.npy'
+means_file = '/home/rivama/projects/lipreading/DiffStats/means-s%(spk)s.npy'
+stds_file = '/home/rivama/projects/lipreading/DiffStats/stds-s%(spk)s.npy'
 
 speakers = ['s%d'%x for x in range(1, 22)]
 filename_template = os.path.join(data_dir, spk_file)
