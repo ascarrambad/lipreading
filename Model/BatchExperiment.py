@@ -37,7 +37,7 @@ class BatchExperiment(object):
         # iteration, RunningTasks is indexed by GPU
         self._running_tasks = dict()
 
-    def run(self):
+    def run(self, wait_end=False):
         for script in self._script_names:
             for params in self.exp_params:
                 self._slot_request()
@@ -70,9 +70,10 @@ class BatchExperiment(object):
 
                 self._running_tasks[nextGPU] = P
 
-        while len(self._running_tasks) != 0:
-            print('Waiting for all experiments to end ... %s' % next(self._load_cur), end='\r')
-            self._remove_task()
+        if wait_end:
+            while len(self._running_tasks) != 0:
+                print('Waiting for all experiments to end ... %s' % next(self._load_cur), end='\r')
+                self._remove_task()
 
     def _slot_request(self):
         # wait for free slot
@@ -88,4 +89,4 @@ class BatchExperiment(object):
                 del self._running_tasks[gpu]
                 break
         else:
-            time.sleep(2)
+            time.sleep(1)
