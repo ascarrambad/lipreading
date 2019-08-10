@@ -54,7 +54,7 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'BttlNk_JointLSTM' + Variant
+    Collection = 'JointLSTM_BttlNk' + Variant
 
     OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
