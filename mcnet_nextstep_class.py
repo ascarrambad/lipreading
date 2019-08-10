@@ -9,6 +9,8 @@ import Model
 import numpy as np
 import tensorflow as tf
 
+from CustomLayers.reshape import reshape
+
 ################################################################################
 #################################### SACRED ####################################
 ################################################################################
@@ -41,8 +43,8 @@ def cfg():
 
     ### NET SPECS
     #
-    MotTSpec = '*STOPGRAD_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*RESHAPE_*LSTM!128_*MASKSEQ'
-    CntTSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*UNDOFLAT!1_*LSTM!128_*MASKSEQ'
+    MotTSpec = '*STOPGRAD_*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*UNDOFLAT!0_*LSTM!128_*MASKSEQ'
+    CntTSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC32t_*DP_FC128t_*DP_*UNDOFLAT!2_*LSTM!128_*MASKSEQ'
     TrgSpec = '*CONCAT!1_FC128t'
     #
 
@@ -57,7 +59,7 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'NEXTSTEP' + Variant
+    Collection = 'NEXTSTEPv2' + Variant
 
 
     OutDir = 'Outdir/MCNet.Class'
@@ -143,16 +145,20 @@ def main(
 
     # Create network
     mott = builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
-    mott.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
-    mott.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
-    mott.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
+    mott.layers['DP-4'].extra_params['TrainingStatusTensor'] = training
+    mott.layers['DP-6'].extra_params['TrainingStatusTensor'] = training
+    # mott.layers['RESHAPE-6'].extra_params['CustomFunction'] = imgloss
+    mott.layers['LSTM-8'].extra_params['SequenceLengthsTensor'] = seq_lens
+    mott.layers['MASKSEQ-9'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    cntt = builder.add_specification('CNTT', CntTSpec, 'CntTFrames', None)
+    cntt = builder.add_specification('CNTT', CntTSpec, 'CntFrames', None)
     cntt.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
     cntt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
-    cntt.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
+    cntt.layers['DP-7'].extra_params['TrainingStatusTensor'] = training
+    cntt.layers['LSTM-9'].extra_params['SequenceLengthsTensor'] = seq_lens
+    cntt.layers['MASKSEQ-10'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
-    trg = builder.add_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-8/Output', 'CNTT-MASKSEQ-8/Output'], 'TrgWords')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOTT-MASKSEQ-9/Output', 'CNTT-MASKSEQ-10/Output'], 'TrgWords')
     builder.build_model()
 
     # Setup Optimizer
@@ -163,8 +169,8 @@ def main(
 
         keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames']
         values = [batch.data,
-                  batch.data_opt,
                   batch.data_lengths,
+                  batch.data_opt,
                   batch.data_targets,
                   training]
 

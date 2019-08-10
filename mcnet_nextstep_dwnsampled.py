@@ -167,7 +167,6 @@ def main(
         # paddings = [[[0, 0], [0, max_seq_len-batch.data.shape[1]]] + [[0, 0]] * (len(batch.data.shape)-2)]
         # [pad_data] = fns.pad_nparrays(paddings, [batch.data])
 
-        batch_size = batch.data.shape[0]
         seq_lens = batch.data_lengths-1 # -1 because we're interested in the second to last position (last position must be predicted)
 
         keys = builder.placeholders.values()

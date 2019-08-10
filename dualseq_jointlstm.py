@@ -4,7 +4,6 @@ import sys
 
 import Data
 import Data.Helpers.encoding as enc
-import Data.Helpers.funcs as fns
 import Model
 
 import numpy as np
@@ -55,7 +54,7 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'JointLSTM' + Variant
+    Collection = 'BttlNk_JointLSTM' + Variant
 
     OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'
@@ -128,50 +127,39 @@ def main(
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'DiffFrames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
-    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'WordTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
+    builder.add_placeholder(train_source_set.target_dtype, train_source_set.target_shape, 'TrgWords')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    training = builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('MOT', MotSpec, 'DiffFrames', None)
-    builder.add_specification('CNT', CntSpec, 'Frames', None)
-    builder.add_main_specification('EDC', TrgSpec, ['MOT-UNDOFLAT-6/Output', 'CNT-UNDOFLAT-8/Output'], 'WordTrgs')
+    mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
+    mot.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    mot.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
 
-    builder.build_model(build_order=['MOT','CNT','EDC'])
+    cnt = builder.add_specification('CNT', CntSpec, 'CntFrames', None)
+    cnt.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    cnt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    cnt.layers['DP-7'].extra_params['TrainingStatusTensor'] = training
 
-    # Setup Optimizer, Loss, Accuracy
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-UNDOFLAT-6/Output', 'CNT-UNDOFLAT-8/Output'], 'TrgWords')
+    trg.layers['LSTM-1'].extra_params['SequenceLengthsTensor'] = seq_lens
+    trg.layers['MASKSEQ-2'].extra_params['MaskIndicesTensor'] = seq_lens - 1
+
+    builder.build_model()
+
+    # Setup Optimizer
     optimizer = tf.train.AdamOptimizer(LearnRate)
-
-    ## AllLosses array & JointLoss creation
-    losses = [x.loss for x in builder.graph_specs if x.loss != None]
-
-    ## Losses dictionary
-    lkeys = ['Wrd']
-    losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        # Arrays to pad
-        arrays_to_be_padded = [batch.data]
-
-        # Paddings
-        max_seq_len = max(batch.data.shape[1], batch.data_opt.shape[1])
-
-        paddings = [[[0, 0], [0, max_seq_len-batch.data.shape[1]]] + [[0, 0]] * (len(batch.data.shape)-2)]
-
-        # Padding operation
-        [pad_data] = fns.pad_nparrays(paddings, arrays_to_be_padded)
-
         keys = builder.placeholders.values()
-        values = [pad_data,
-                  batch.data_lengths,
+        values = [batch.data,
                   batch.data_opt,
                   batch.data_targets,
+                  batch.data_lengths,
                   training]
 
         return dict(zip(keys, values))
@@ -180,7 +168,12 @@ def main(
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss, losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=trg.accuracy,
+                            eval_losses={'Wrd': trg.loss},
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set, valid_target_set],
@@ -197,4 +190,3 @@ def main(
     if DBPath != None:
         test_result = list(test_result[Data.SetType.VALID].values())
         return best_e, list(test_result[0]), list(test_result[1])
-
