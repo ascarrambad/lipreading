@@ -108,6 +108,8 @@ def main(
 
     # accuracy = builder._get_tensor('DEC-PREDICT-9/AccuracyAVG')
 
+    ########
+
     loss = builder._get_tensor('TRG-PREDICT-3/MeanLoss')
     accuracy = builder._get_tensor('TRG-PREDICT-3/Accuracy')
     losses = {'Wrd': loss}
@@ -146,4 +148,4 @@ def main(
 
     if DBPath != None:
         test_result = list(test_result[Data.SetType(ValidOrTest+1)].values())
-        return best_e, list(test_result[0]), list(test_result[1])
+        return [list(test_result[i]) for i in range(len(dmn_spk))]
