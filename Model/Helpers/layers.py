@@ -355,6 +355,35 @@ def _undo_flat_features(in_tensor, index=0):
 
     return out_tensor
 
+def _reshape(in_tensor, extra_params, until_new_index='all', from_old_index='same'):
+
+    assert extra_params['NewShapeTensor'] != None
+
+    if until_new_index != 'all':
+        until_new_index = int(until_new_index)
+
+    ############################################################################
+
+    new_shape = tf.shape(extra_params['NewShapeTensor'], name='NewShape')
+
+    if until_new_index != 'all':
+
+        if from_old_index is 'same':
+            from_old_index = until_new_index
+        else:
+            from_old_index = int(from_old_index)
+
+    ############################################################################
+
+        curr_shape = tf.shape(in_tensor, name='CurrentShape')
+        new_shape = tf.concat([new_shape[:until_new_index], curr_shape[from_old_index:]], axis=0, name='NewShape')
+
+    out_tensor = tf.reshape(tensor=in_tensor,
+                            shape=new_shape,
+                            name='Output')
+
+    return out_tensor
+
 # *DP!0.5
 def _dropout(in_tensor, extra_params, keep_prob=0.5):
 
@@ -469,9 +498,14 @@ def _stop_gradient(in_tensor):
 
 # *CUSTOM
 def _custom(in_tensor, *args):
+
+    assert type(args[0]) is dict
     assert args[0]['CustomFunction'] != None
 
-    return args[0]['CustomFunction'](in_tensor, *args[1:])
+    extra_params = args[0]
+    custom_func = extra_params.pop('CustomFunction')
+
+    return custom_func(in_tensor, *args)
 
 # SOBEL
 def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
@@ -568,6 +602,7 @@ layer_type = {
     'GRADFLIP': _gradient_reversal,
     'FLATFEAT': _flat_features,
     'UNDOFLAT': _undo_flat_features,
+    'RESHAPE', _reshape,
     'DP': _dropout,
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
