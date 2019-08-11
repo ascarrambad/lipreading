@@ -561,7 +561,7 @@ layer_type = {
     'GRADFLIP': _gradient_reversal,
     'FLATFEAT': _flat_features,
     'UNDOFLAT': _undo_flat_features,
-    'RESHAPE', _reshape,
+    'RESHAPE': _reshape,
     'DP': _dropout,
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
