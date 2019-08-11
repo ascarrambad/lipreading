@@ -507,47 +507,6 @@ def _custom(in_tensor, *args):
 
     return custom_func(in_tensor, *args)
 
-# SOBEL
-def _sobel_edges(in_tensor, arctan_or_norm=0, keep_channel=False):
-
-    keep_channel = bool(int(keep_channel))
-    arctan_or_norm = int(arctan_or_norm)
-
-    new_shape = tf.concat([[-1], tf.shape(in_tensor)[2:]], axis=0, name='SobelShape')
-    reshaped = tf.reshape(tensor=in_tensor, shape=new_shape, name='SobelReshaped')
-
-    edge_maps = tf.identity(tf.image.sobel_edges(reshaped), name='SobelEdgeMaps')
-    reshaped = tf.reshape(tensor=edge_maps, shape=[-1, 2], name='ArcTanReshaped')
-
-    dy, dx = tf.unstack(reshaped, axis=-1)
-
-    if arctan_or_norm == 0:
-        gradient_maps = tf.atan2(dy, dx, name='SobelGradientEdgeMaps')
-    else:
-        gradient_maps = tf.sqrt(tf.square(dy) + tf.square(dx), name='SobelNormEdgeMaps')
-
-    if keep_channel:
-        out_tensor = tf.reshape(tensor=gradient_maps, shape=tf.shape(in_tensor), name='Output')
-    else:
-        out_tensor = tf.reshape(tensor=gradient_maps, shape=tf.shape(in_tensor)[:-1], name='Output')
-
-    return out_tensor
-
-# *DIFF
-def _diff_frames(in_tensor):
-    prev = tf.identity(in_tensor[:,:-1], name='PreviousFrames')
-    next_ = tf.identity(in_tensor[:, 1:], name='NextFrames')
-    out_tensor = tf.identity(next_ - prev, name='Output')
-
-    return out_tensor
-
-# *SCALE
-def _scaler(in_tensor):
-    min_ = tf.reduce_min(in_tensor)
-    return tf.div(x=tf.subtract(in_tensor, min_),
-                  y=tf.subtract(tf.reduce_max(in_tensor), min_),
-                  name='Output')
-
 # *RESGEN
 _resids = []
 def _residual_gen(in_tensors, axis):
@@ -611,9 +570,6 @@ layer_type = {
     'SPLIT': _split,
     'STOPGRAD': _stop_gradient,
     'CUSTOM': _custom,
-    'SOBEL': _sobel_edges,
-    'DIFF': _diff_frames,
-    'SCALE': _scaler,
     'RESGEN': _residual_gen,
     'RESGET': _residual_get,
 }
