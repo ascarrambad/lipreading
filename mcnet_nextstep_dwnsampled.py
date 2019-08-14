@@ -203,4 +203,4 @@ def main(
 
     if DBPath != None:
         test_result = list(test_result[Data.SetType.VALID].values())
-        return return best_e, list(test_result[0][:-1])
+        return best_e, list(test_result[0][:-1])

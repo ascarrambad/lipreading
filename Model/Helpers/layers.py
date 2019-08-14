@@ -505,7 +505,10 @@ def _custom(in_tensor, *args):
     extra_params = args[0]
     custom_func = extra_params.pop('CustomFunction')
 
-    return custom_func(in_tensor, *args)
+    if len(extra_params) > 0:
+        return custom_func(in_tensor, *args)
+    else:
+        return custom_func(in_tensor, *args[1:])
 
 # *RESGEN
 _resids = []
