@@ -54,7 +54,7 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'Bottleneck' + Variant
+    Collection = 'BNK' + Variant
 
     OutDir = 'Outdir/DualSeq'
     TensorboardDir = OutDir + '/tensorboard'

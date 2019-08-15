@@ -50,7 +50,7 @@ def cfg():
 
     DBPath = None
     Variant = ''
-    Collection = 'FC' + Variant
+    Collection = 'BNK' + Variant
 
     OutDir = 'Outdir/Baseline'
     TensorboardDir = OutDir + '/tensorboard'
