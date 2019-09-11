@@ -12,7 +12,12 @@ class Trainer(object):
         assert tensorboard_path != ''
 
         self.epochs = epochs
-        self.optimizer = optimizer.minimize(list(eval_losses.values())[0]) if optimizer != None else None
+
+        self.optimizer = None
+        if optimizer is not None:
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                self.optimizer = optimizer.minimize(list(eval_losses.values())[0])
 
         self.accuracy = accuracy
         self.eval_losses = eval_losses

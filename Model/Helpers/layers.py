@@ -406,6 +406,20 @@ def _dropout(in_tensor, extra_params, keep_prob=0.5):
 
     return tf.identity(dropout, name='Output')
 
+def _batch_norm(in_tensor, extra_params):
+
+    assert extra_params['TrainingStatusTensor'] != None
+
+    ############################################################################
+
+    train_cond = extra_params['TrainingStatusTensor']
+
+    ############################################################################
+
+    b_norm = tf.layers.batch_normalization(inputs=in_tensor, training=train_cond)
+
+    return tf.identity(b_norm, name='Output')
+
 # *MP!2-2
 def _max_pool2d(in_tensor, kernel, stride):
 
@@ -566,6 +580,7 @@ layer_type = {
     'UNDOFLAT': _undo_flat_features,
     'RESHAPE': _reshape,
     'DP': _dropout,
+    'BNORM': _batch_norm,
     'MP': _max_pool2d,
     'MPTD': _max_pool3d,
     'UNP': _unpooling,
