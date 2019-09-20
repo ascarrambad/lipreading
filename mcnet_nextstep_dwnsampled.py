@@ -38,23 +38,23 @@ def cfg():
     ### NET SPECS
     MotSpec = '*FLATFEAT!2-1_CONV32r!5_*MP!2-2_CONV64r!5_*MP!2-2_*UNDOFLAT!0_*CONVLSTM!64-3'
     #
-    CntSpec = '*FLATFEAT!2-1_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_*MP!2-2_*UNDOFLAT!1_*CONVLSTM!64-3'
+    CntSpec = '*FLATFEAT!2-1_CONV32r!3_CONV32r!3_*MP!2-2_CONV64r!3_CONV64r!3_CONV64r!3_*MP!2-2_*UNDOFLAT!1'
     #
     EncSpec = '*CONCAT!4_*FLATFEAT!2-1_CONV64r!3_CONV32r!3_CONV64r!3'
     #
     ResSpec = '*RESGEN!3'
     #
-    DecSpec = '*UNP!2_*RESGET!1_DECONV64r!3_DECONV32r!3_*UNP!2_*RESGET!0_DECONV32r!3_DECONV1t!3_*UNDOFLAT!2'
+    DecSpec = '*UNP!2_*RESGET!1_DECONV64r!3_DECONV64r!3_DECONV32r!3_*UNP!2_*RESGET!0_DECONV32r!3_DECONV1t!3_*UNDOFLAT!2'
     #
 
     # NET TRAINING
-    MaxEpochs = 200
+    MaxEpochs = 500
     BatchSize = 64
     LearnRate = 0.0001
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'LOSS'
-    EarlyStoppingPatience = 10
+    EarlyStoppingPatience = 20
 
     DBPath = None
     Variant = '_DwnSampled'
@@ -138,16 +138,16 @@ def main(
     mot.layers['CONVLSTM-6'].extra_params['SequenceLengthsTensor'] = seq_lens
 
     cnt = builder.add_specification('CNT', CntSpec, 'CntFrames', None)
-    cnt.layers['CONVLSTM-8'].extra_params['SequenceLengthsTensor'] = seq_lens
+    # cnt.layers['CONVLSTM-8'].extra_params['SequenceLengthsTensor'] = seq_lens
 
     res_inputs = ['MOT-CONV-1/Output', 'MOT-CONV-3/Output',
-                  'CNT-CONV-2/Output', 'CNT-CONV-5/Output']
+                  'CNT-CONV-2/Output', 'CNT-CONV-6/Output']
     builder.add_specification('RES', ResSpec, res_inputs, None)
 
-    builder.add_specification('ENC', EncSpec, ['MOT-CONVLSTM-6/Output', 'CNT-CONVLSTM-8/Output'], None)
+    builder.add_specification('ENC', EncSpec, ['MOT-CONVLSTM-6/Output', 'CNT-UNDOFLAT-8/Output'], None)
 
     dec = builder.add_specification('DEC', DecSpec, 'ENC-CONV-4/Output', 'TrgFrames')
-    dec.layers['PREDICT-9'].extra_params['CustomFunction'] = imgloss
+    dec.layers['PREDICT-10'].extra_params['CustomFunction'] = imgloss
 
     builder.build_model()
 
@@ -162,11 +162,6 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        # # Padding
-        # max_seq_len = max(batch.data.shape[1], batch.data_opt.shape[1])
-        # paddings = [[[0, 0], [0, max_seq_len-batch.data.shape[1]]] + [[0, 0]] * (len(batch.data.shape)-2)]
-        # [pad_data] = fns.pad_nparrays(paddings, [batch.data])
-
         seq_lens = batch.data_lengths-1 # -1 because we're interested in the second to last position (last position must be predicted)
 
         keys = builder.placeholders.values()
@@ -176,7 +171,6 @@ def main(
                   seq_lens]
 
         return dict(zip(keys, values))
-
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]

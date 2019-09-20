@@ -9,6 +9,8 @@ import Model
 import numpy as np
 import tensorflow as tf
 
+from CustomLayers.imgloss import imgloss
+
 ################################################################################
 #################################### SACRED ####################################
 ################################################################################
@@ -35,13 +37,13 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC256t_*DP_FC256t_*DP_*ORESHAPE!0_*LSTM!256_*MASKSEQ'
+    MotSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC128t_*DP_*UNDOFLAT!0_*LSTM!128'
     #
-    CntSpec = '*FLATFEAT!3_FC256t'
+    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!3_FC128t_*DP_FC32t_*DP_FC128t_*DP_*UNDOFLAT!2_*LSTM!128'
     #
-    EncSpec = '*CONCAT!1_FC256t_FC128t_FC256t'
+    EncSpec = '*CONCAT!2_*FLATFEAT!2-1_FC128t'
     #
-    DecSpec = '*DP_FC256t_*DP_FC256t_FC3200t_*ORESHAPE!1'
+    DecSpec = '*DP_FC128t_FC'+str(20*40 if DownSample else 40*80)+'t_*UNDOFLAT!4_*UNDOFLAT!1'
     #
 
     # NET TRAINING
@@ -54,7 +56,7 @@ def cfg():
     EarlyStoppingPatience = 10
 
     DBPath = None
-    Variant = '_256'
+    Variant = '_BNK'
     Collection = 'NEXTSTEP_FC' + Variant
 
     OutDir = 'Outdir/MCNet.PreProc'
@@ -63,7 +65,7 @@ def cfg():
 
     # Prepare MongoDB batch exp
     if DBPath != None:
-        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc', collection=Collection))
+        ex.observers.append(MongoObserver.create(url=DBPath, db_name='LipR_MCNet_PreProc_Valid', collection=Collection))
 
 ################################################################################
 #################################### SCRIPT ####################################
@@ -110,69 +112,78 @@ def main(
     # Load data
     train_data, _ = data_loader.load_data(Data.SetType.TRAIN, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
     valid_data, _ = data_loader.load_data(Data.SetType.VALID, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
-    test_data, feature_size = data_loader.load_data(Data.SetType.TEST, WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
 
     # Create source & target datasets for all domain types
     train_source_set = Data.Set(train_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
-
     valid_source_set = Data.Set(valid_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
 
-    test_source_set = Data.Set(test_data[Data.DomainType.SOURCE], BatchSize, TruncateRemainder, Shuffle)
+    # Memory cleanup
+    del data_loader, train_data, valid_data
 
     # Adding classification layers
-    DecSpec += '_*PREDICT!img'
+    DecSpec += '_*CUSTOM(PREDICT)'
 
     # Model Builder
     builder = Model.Builder(InitStd)
 
     # Adding placeholders for data
-    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'Frames')
-    builder.add_placeholder(tf.int32, [None], 'SeqLengths')
-    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'LastFrame')
-    builder.add_placeholder(train_source_set.data_dtype, (None,) + feature_size, 'FrameTrgs')
-    builder.add_placeholder(tf.bool, [], 'Training')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'MotFrames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'CntFrames')
+    builder.add_placeholder(train_source_set.data_dtype, train_source_set.data_shape, 'TrgFrames')
+    seq_lens = builder.add_placeholder(tf.int32, [None], 'SeqLengths')
+    training = builder.add_placeholder(tf.bool, [], 'Training')
 
     # Create network
-    builder.add_specification('MOT', MotSpec, 'Frames', None)
-    builder.add_specification('CNT', CntSpec, 'LastFrame', None)
-    builder.add_specification('ENC', EncSpec, ['MOT-MASKSEQ-8/Output', 'CNT-FC-1/Output'], None)
-    builder.add_main_specification('DEC', DecSpec, 'ENC-FC-3/Output', 'FrameTrgs')
+    mot = builder.add_specification('MOT', MotSpec, 'MotFrames', None)
+    mot.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    mot.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    mot.layers['LSTM-7'].extra_params['SequenceLengthsTensor'] = seq_lens
 
-    builder.build_model(build_order=['MOT','CNT','ENC','DEC'])
+    cnt = builder.add_specification('CNT', CntSpec, 'CntFrames', None)
+    cnt.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
+    cnt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
+    cnt.layers['DP-7'].extra_params['TrainingStatusTensor'] = training
+    cnt.layers['LSTM-9'].extra_params['SequenceLengthsTensor'] = seq_lens
 
-    # Setup Optimizer, Loss, Accuracy
+    builder.add_specification('ENC', EncSpec, ['MOT-LSTM-7/Output', 'CNT-LSTM-9/Output'], None)
+
+    dec = builder.add_specification('DEC', DecSpec, 'ENC-FC-2/Output', 'TrgFrames')
+    dec.layers['DP-0'].extra_params['TrainingStatusTensor']
+    dec.layers['PREDICT-5'].extra_params['CustomFunction'] = imgloss
+
+    builder.build_model()
+
+    # Setup Optimizer, Loss
     optimizer = tf.train.AdamOptimizer(LearnRate)
 
-    ## AllLosses array & JointLoss creation
-    losses = np.flip(builder.graph_specs[0].loss)
-
     ## Losses dictionary
+    losses = np.flip(dec.loss)
     lkeys = list(reversed(['PLoss', 'GdlLoss', 'ImgLoss']))
     losses = dict(zip(lkeys, losses))
-
-    accuracy = builder.graph_specs[0].accuracy
 
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        for i in range(1,batch.data.shape[1]-1): # range from diff frame 1 to n-1
-            batch_size = batch.data.shape[0]
-            keys = builder.placeholders.values()
-            seq_lens = np.minimum(batch.data_lengths-2, [i]*batch_size) # -2 because we're interested in the second to last position
+        seq_lens = batch.data_lengths-1 # -1 because we're interested in the second to last position (last position must be predicted)
 
-            values = [batch.data[:,:i,:,:,:], # all frame diffs until i
-                      seq_lens, # length of the sequences
-                      batch.data_opt[np.arange(batch_size),seq_lens,:,:,:], # current frame min(lengths-1, i)
-                      batch.data_opt[np.arange(batch_size),seq_lens+1,:,:,:], # frame after min(lengths-1, i)
-                      training]
+        keys = builder.placeholders.values()
+        values = [batch.data,
+                  batch.data_opt,
+                  batch.data_opt[:,1:,:,:,:],
+                  seq_lens]
 
-            yield dict(zip(keys, values))
+        return dict(zip(keys, values))
 
     # Training
     stopping_type = Model.StoppingType[EarlyStoppingCondition]
     stopping_value = Model.StoppingValue[EarlyStoppingValue]
 
-    trainer = Model.Trainer(MaxEpochs, optimizer, accuracy, builder.graph_specs[0].loss[2], losses, TensorboardDir, ModelDir)
+    trainer = Model.Trainer(epochs=MaxEpochs,
+                            optimizer=optimizer,
+                            accuracy=dec.accuracy,
+                            eval_losses=losses,
+                            tensorboard_path=TensorboardDir,
+                            model_path=ModelDir)
     trainer.init_session()
     best_e, best_v = trainer.train(train_sets=[train_source_set],
                                    valid_sets=[valid_source_set],
@@ -182,10 +193,10 @@ def main(
                                    stopping_patience=EarlyStoppingPatience,
                                    feed_builder=feed_builder)
 
-    test_result = trainer.test(test_sets=[test_source_set],
+    test_result = trainer.test(test_sets=[valid_source_set],
                                feed_builder=feed_builder,
                                batched=True)
 
     if DBPath != None:
-        test_result = list(test_result[Data.SetType.TEST].values())
-        return [best_e, best_v], list(test_result[0])
+        test_result = list(test_result[Data.SetType.VALID].values())
+        return best_e, list(test_result[0][:-1])
