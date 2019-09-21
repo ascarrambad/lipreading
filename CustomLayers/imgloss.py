@@ -33,7 +33,7 @@ def _gdl_loss(gen_frames, gt_frames, mask, alpha=1.):
 
   gdl_loss = (grad_diff_x ** alpha + grad_diff_y ** alpha)
   with tf.variable_scope('UNDOFLAT'):
-      gdl_loss = _undo_flat_features(gdl_loss, index=4)
+      gdl_loss = _undo_flat_features(gdl_loss, index=-1)
   gdl_loss = tf.identity(tf.reduce_sum(tf.reduce_sum(gdl_loss, [2,3,4]) * mask) / (tf.reduce_sum(mask)*20*40), name='Output')
 
   # condense into one tensor and avg
@@ -41,7 +41,7 @@ def _gdl_loss(gen_frames, gt_frames, mask, alpha=1.):
 
 def imgloss(in_tensor, trg_tensor):
 
-    in_tensor = in_tensor[:,:-1,:,:,:]
+    in_tensor = in_tensor[:,:-1,:,:,:] # removing last useless zero (we skip last frame of each sequence lacking its target)
 
     loss = tf.square(in_tensor - trg_tensor, name='PLoss')
     hits = tf.cast(tf.equal(in_tensor, trg_tensor), dtype=tf.float32, name='Hits')

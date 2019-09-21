@@ -330,9 +330,6 @@ def _flat_features(in_tensor, num_to_flat, reversed_=False):
 def _undo_flat_features(in_tensor, index=0):
 
     index = int(index)
-
-    assert index >= 0
-
     global _orig_shape
 
     assert len(_orig_shape) > 0

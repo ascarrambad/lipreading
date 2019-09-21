@@ -43,7 +43,7 @@ def cfg():
     #
     EncSpec = '*CONCAT!2_*FLATFEAT!2-1_FC128t'
     #
-    DecSpec = '*DP_FC128t_FC'+str(20*40 if DownSample else 40*80)+'t_*UNDOFLAT!4_*UNDOFLAT!1'
+    DecSpec = '*DP_FC128t_FC'+str(20*40 if DownSample else 40*80)+'t_*UNDOFLAT!4_*RESHAPE'
     #
 
     # NET TRAINING
@@ -148,7 +148,8 @@ def main(
     builder.add_specification('ENC', EncSpec, ['MOT-LSTM-7/Output', 'CNT-LSTM-9/Output'], None)
 
     dec = builder.add_specification('DEC', DecSpec, 'ENC-FC-2/Output', 'TrgFrames')
-    dec.layers['DP-0'].extra_params['TrainingStatusTensor']
+    dec.layers['DP-0'].extra_params['TrainingStatusTensor'] = training
+    dec.layers['RESHAPE-4'].extra_params['NewShapeTensor'] = builder.placeholders['MotFrames']
     dec.layers['PREDICT-5'].extra_params['CustomFunction'] = imgloss
 
     builder.build_model()
@@ -170,7 +171,8 @@ def main(
         values = [batch.data,
                   batch.data_opt,
                   batch.data_opt[:,1:,:,:,:],
-                  seq_lens]
+                  seq_lens,
+                  training]
 
         return dict(zip(keys, values))
 
