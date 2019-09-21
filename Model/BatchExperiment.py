@@ -46,7 +46,8 @@ class BatchExperiment(object):
                 nextGPU = min(self._gpus - set(self._running_tasks.keys()))
 
                 # this is a bit more complicated
-                par_list = ["DBPath='%s'" % self._db_path]
+                par_list = []
+                if self._db_path != None: par_list.append("DBPath='%s'" % self._db_path)
                 for (key, val) in params.items():
                     # make parameter string
                     if isinstance(val, float) or isinstance(val, int):
