@@ -35,10 +35,13 @@ class Layer(object):
             self.extra_params['SequenceLengthsTensor'] = None
         elif self.type == 'MASKSEQ':
             self.extra_params['MaskIndicesTensor'] = None
-        elif self.type == 'DP':
-            self.extra_params['TrainingStatusTensor'] = None
         elif self.type == 'GRADFLIP':
             self.extra_params['LambdaTensor'] = None
+        elif self.type == 'RESHAPE':
+            self.extra_params['NewShapeTensor'] = None
+            self.extra_params['NewShape'] = None
+        elif self.type == 'DP':
+            self.extra_params['TrainingStatusTensor'] = None
         elif self.type == 'CUSTOM':
             self.extra_params['CustomFunction'] = lambda x,y: x
 

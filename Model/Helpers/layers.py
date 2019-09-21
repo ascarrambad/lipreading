@@ -354,14 +354,17 @@ def _undo_flat_features(in_tensor, index=0):
 
 def _reshape(in_tensor, extra_params, until_new_index='all', from_old_index='same'):
 
-    assert extra_params['NewShapeTensor'] != None
+    assert extra_params['NewShapeTensor'] != None or extra_params['NewShape'] != None
 
     if until_new_index != 'all':
         until_new_index = int(until_new_index)
 
     ############################################################################
 
-    new_shape = tf.shape(extra_params['NewShapeTensor'], name='NewShape')
+    if extra_params['NewShapeTensor'] != None:
+        new_shape = tf.shape(extra_params['NewShapeTensor'], name='NewShape')
+    else:
+        new_shape = extra_params['NewShape']
 
     if until_new_index != 'all':
 
