@@ -48,8 +48,7 @@ def cfg():
     Variant = '_DwnSampled'
     Collection = 'NEXTSTEP' + Variant
 
-    OutDir = TrainedModelDir
-    ModelDir = OutDir + '/model%d' % TrainedModelSeed
+    ModelDir = TrainedModelDir + '/model%d' % TrainedModelSeed
 
     # Prepare MongoDB batch exp
     if DBPath != None:
@@ -70,7 +69,7 @@ def main(
         # Training settings
         BatchSize,
         # Extra settings
-        OutDir, DBPath, _config
+        DBPath, _config
         ):
     print('Config directory is:',_config)
 
@@ -98,15 +97,15 @@ def main(
     ############################################################################
 
     # Setup Loss, Accuracy
-    # ploss = builder._get_tensor('DEC-PREDICT-9/PLossAVG')
-    # gdlloss = builder._get_tensor('DEC-PREDICT-9/GdlLoss/Output')
-    # imgloss = builder._get_tensor('DEC-PREDICT-9/ImgLoss')
+    # ploss = builder._get_tensor('DEC-PREDICT-5/PLossAVG')
+    # gdlloss = builder._get_tensor('DEC-PREDICT-5/GdlLoss/Output')
+    # imgloss = builder._get_tensor('DEC-PREDICT-5/ImgLoss')
 
     # losses = [imgloss, gdlloss, ploss]
     # lkeys = list(reversed(['PLoss', 'GdlLoss', 'ImgLoss']))
     # losses = dict(zip(lkeys, losses))
 
-    # accuracy = builder._get_tensor('DEC-PREDICT-9/AccuracyAVG')
+    # accuracy = builder._get_tensor('DEC-PREDICT-5/AccuracyAVG')
 
     ########
 
@@ -117,10 +116,22 @@ def main(
     # Feed Builder
     def feed_builder(epoch, batch, training):
 
-        keys = builder.placeholders.values()
+        seq_lens = batch.data_lengths-1
+
+        # keys = builder.placeholders.values()
+        # values = [batch.data,
+        #           batch.data_opt,
+        #           batch.data_opt[:,1:,:,:,:],
+        #           seq_lens,
+        #           False
+        #           ]
+
+        ########
+
+        keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames']
         values = [batch.data,
-                  batch.data_lengths,
                   batch.data_opt,
+                  batch.data_lengths,
                   batch.data_targets,
                   training]
 

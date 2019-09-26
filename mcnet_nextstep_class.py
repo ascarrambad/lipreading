@@ -145,7 +145,7 @@ def main(
     mott = builder.add_specification('MOTT', MotTSpec, MotInputTensor+'/Output', None)
     mott.layers['DP-4'].extra_params['TrainingStatusTensor'] = training
     mott.layers['DP-6'].extra_params['TrainingStatusTensor'] = training
-    # mott.layers['RESHAPE-6'].extra_params['CustomFunction'] = imgloss
+    # mott.layers['RESHAPE-6'].extra_params['NewShapeTensor'] = builder._get_tensor('MOT-FLATFEAT-0/Input')
     mott.layers['LSTM-8'].extra_params['SequenceLengthsTensor'] = seq_lens
     mott.layers['MASKSEQ-9'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
@@ -167,8 +167,9 @@ def main(
 
         keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames']
         values = [batch.data,
-                  batch.data_lengths,
                   batch.data_opt,
+                  batch.data_lengths,
+                  # False,
                   batch.data_targets,
                   training]
 
