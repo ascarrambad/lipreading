@@ -16,24 +16,26 @@ import tensorflow as tf
 from sacred import Experiment
 from sacred.observers import MongoObserver
 
-ex = Experiment('')
+ex = Experiment('Evaluator')
 
 @ex.config
 def cfg():
 
     #### PRETRAINING PARAMS
     TrainedModelDir = 'Outdir/MotCnt'
+    OutputLayer = 'TRG-PREDICT-3'
     TrainedModelSeed = 650237723
 
     #### DATA
     AllSpeakers = 's5_s8'
-    ValidOrTest = 0
+    TrainOrValidOrTest = 0
     WordsPerSpeaker = -1
 
     ### DATA PROCESSING
     VideoNorm = 'MV'
     AddChannel = True
     DownSample = False
+    LoadMotion = False
 
     ### TRAINING DATA
     TruncateRemainder = False
@@ -61,11 +63,11 @@ def cfg():
 @ex.automain
 def main(
         #PreProc
-        ModelDir, TrainedModelSeed,
+        ModelDir, TrainedModelSeed, OutputLayer,
         # Speakers
-        AllSpeakers, ValidOrTest, WordsPerSpeaker,
+        AllSpeakers, TrainOrValidOrTest, WordsPerSpeaker,
         # Data
-        VideoNorm, AddChannel, DownSample, TruncateRemainder, Shuffle,
+        VideoNorm, AddChannel, DownSample, LoadMotion, TruncateRemainder, Shuffle,
         # Training settings
         BatchSize,
         # Extra settings
@@ -80,7 +82,7 @@ def main(
     data_loader = Data.Loader(*dmn_spk)
 
     # Load data
-    data, feature_size = data_loader.load_data(Data.SetType(ValidOrTest+1), WordsPerSpeaker, VideoNorm, True, AddChannel, DownSample)
+    data, feature_size = data_loader.load_data(Data.SetType(TrainOrValidOrTest), WordsPerSpeaker, VideoNorm, LoadMotion, AddChannel, DownSample)
 
     # Create source & target datasets for all domain types
     datasets = [Data.Set(data[Data.DomainType(i)], BatchSize, TruncateRemainder, Shuffle) for i in range(len(dmn_spk))]
@@ -109,8 +111,8 @@ def main(
 
     ########
 
-    loss = builder._get_tensor('TRG-PREDICT-3/MeanLoss')
-    accuracy = builder._get_tensor('TRG-PREDICT-3/Accuracy')
+    loss = builder._get_tensor(OutputLayer+'/MeanLoss')
+    accuracy = builder._get_tensor(OutputLayer+'/Accuracy')
     losses = {'Wrd': loss}
 
     # Feed Builder
@@ -158,5 +160,5 @@ def main(
                                batched=True)
 
     if DBPath != None:
-        test_result = list(test_result[Data.SetType(ValidOrTest+1)].values())
+        test_result = list(test_result[Data.SetType(TrainOrValidOrTest)].values())
         return [list(test_result[i]) for i in range(len(dmn_spk))]
