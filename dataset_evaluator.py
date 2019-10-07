@@ -132,10 +132,10 @@ def main(
 
         keys = [v for k,v in builder.placeholders.items() if k != 'TrgFrames']
         values = [batch.data,
-                  batch.data_opt,
-                  batch.data_lengths,
                   batch.data_targets,
-                  training]
+                  batch.data_lengths,
+                  False]
+        if LoadMotion: values.insert(1, batch.data_opt)
 
         return dict(zip(keys, values))
 
