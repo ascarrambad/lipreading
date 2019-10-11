@@ -36,20 +36,20 @@ def cfg():
     Shuffle = 1
 
     ### NET SPECS
-    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*UNDOFLAT!0_*LSTM!128_*MASKSEQ_FC128t'
+    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC256t_*DP_FC256t_*DP_*UNDOFLAT!0_*LSTM!256_*MASKSEQ'
     #
 
     # NET TRAINING
     MaxEpochs = 200
-    BatchSize = 64 # MULTIPLIED BY 2 (source and target)
-    LearnRate = 0.001
+    BatchSize = 64
+    LearnRate = 0.0009
     InitStd = 0.1
     EarlyStoppingCondition = 'SOURCEVALID'
     EarlyStoppingValue = 'ACCURACY'
-    EarlyStoppingPatience = 10
+    EarlyStoppingPatience = 20
 
     DBPath = None
-    Variant = ''
+    Variant = '_f256x2+l256'
     Collection = 'FC' + Variant
 
     OutDir = 'Outdir/Baseline'
