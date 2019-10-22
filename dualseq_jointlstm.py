@@ -141,9 +141,8 @@ def main(
     cnt = builder.add_specification('CNT', CntSpec, 'CntFrames', None)
     cnt.layers['DP-3'].extra_params['TrainingStatusTensor'] = training
     cnt.layers['DP-5'].extra_params['TrainingStatusTensor'] = training
-    cnt.layers['DP-7'].extra_params['TrainingStatusTensor'] = training
 
-    trg = builder.add_specification('TRG', TrgSpec, ['MOT-UNDOFLAT-6/Output', 'CNT-UNDOFLAT-8/Output'], 'TrgWords')
+    trg = builder.add_specification('TRG', TrgSpec, ['MOT-UNDOFLAT-6/Output', 'CNT-UNDOFLAT-6/Output'], 'TrgWords')
     trg.layers['LSTM-1'].extra_params['SequenceLengthsTensor'] = seq_lens
     trg.layers['MASKSEQ-2'].extra_params['MaskIndicesTensor'] = seq_lens - 1
 
