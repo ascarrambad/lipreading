@@ -35,10 +35,12 @@ def cfg():
     TruncateRemainder = False
     Shuffle = 1
 
+    BNK = '32'
+
     ### NET SPECS
     MotSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC128t_*DP_*UNDOFLAT!0_*LSTM!128_*MASKSEQ'
     #
-    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC32t_*DP_FC128t_*DP_*UNDOFLAT!2_*LSTM!128_*MASKSEQ'
+    CntSpec = '*FLATFEAT!2-1_*FLATFEAT!2_FC128t_*DP_FC'+BNK+'t_*DP_FC128t_*DP_*UNDOFLAT!2_*LSTM!128_*MASKSEQ'
     #
     TrgSpec = '*CONCAT!1_FC128t'
     #
