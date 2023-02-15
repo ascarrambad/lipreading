@@ -2,7 +2,7 @@
 
 This is the **code repository** for the work published in
 
-[Matteo Riva, Michael Wand, and Jürgen Schmidhuber](https://ieeexplore.ieee.org/document/9053535/citations#citations). *Motion dynamics improve speaker-independent lipreading.* In Proc. ICASSP, 2020, pp. 4407-4411.
+[Matteo Riva, Michael Wand, and Jürgen Schmidhuber](https://ieeexplore.ieee.org/document/9053535). *Motion dynamics improve speaker-independent lipreading.* In Proc. ICASSP, 2020, pp. 4407-4411.
 
 ## Abstract
 
