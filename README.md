@@ -1,15 +1,9 @@
-# Exploring domain adaptation for lipreading
+# Speaker-independent Lipreading
 
-## Brief description of the scope and objectives of the thesis
-Nowadays building a machine learning model that masters the problem of lipreading is
-a hard task. In order to train a model that would provide a decent accuracy on
-never before seen speakers, a very large amount of data is required. This is
-due to the different physiological factors and articulatory patterns in the shape
-of the mouth of different speakers.
+This is the **code repository** for the work published in
 
-Thus, this thesis will explore fully trainable deep learning methods capable of
-extracting features that are speaker invariant, that is invariant w.r.t. shifts
-in the data distribution between videos of different speakers. While there is no
-clear path to solve this problem, we will experiment on separately
-learning the motion dynamics and speech content, on specific training objectives
-(in the style of domain-adversarial training), and/or on fast adaptation paradigms.
+[Matteo Riva, Michael Wand, and Jürgen Schmidhuber](https://ieeexplore.ieee.org/document/9053535/citations#citations). *Motion dynamics improve speaker-independent lipreading.* In Proc. ICASSP, 2020, pp. 4407-4411.
+
+## Abstract
+
+We present a novel lipreading system that improves on the task of speaker-independent word recognition by decoupling motion and content dynamics. We achieve this by implementing a deep learning architecture that uses two distinct pipelines to process motion and content and subsequently merges them, implementing an end-to-end trainable system that performs fusion of independently learned representations. We obtain a average relative word accuracy improvement of ≈ 6.8% on unseen speakers and of ≈ 3.3% on known speakers, with respect to a baseline which uses a standard architecture.
